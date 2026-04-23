@@ -1,0 +1,37 @@
+{
+  "expo": {
+    "name": "Riffado",
+    "slug": "riffado",
+    "scheme": "riffado",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "dark",
+    "newArchEnabled": true,
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#0B0B12"
+    },
+    "ios": {
+      "bundleIdentifier": "mx.riffado.app",
+      "supportsTablet": false,
+      "infoPlist": {
+        "NSMicrophoneUsageDescription": "Riffado necesita acceso al micrófono para escuchar la canción y detectar los acordes."
+      }
+    },
+    "android": {
+      "package": "mx.riffado.app",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#0B0B12"
+      },
+      "edgeToEdgeEnabled": true,
+      "predictiveBackGestureEnabled": false
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": ["expo-dev-client"]
+  }
+}

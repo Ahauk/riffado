@@ -1,0 +1,21 @@
+filename,category,expected_chords,notes
+01_let_it_be.wav,pop_rock_open,"C,G,Am,F",verso clásico
+02_stand_by_me.wav,pop_rock_open,"A,F#m,D,E",intro/verso
+03_knockin_heaven.wav,pop_rock_open,"G,D,Am,C",verso
+04_horse_no_name.wav,pop_rock_open,"Em,D",acordes reales raros — test de simplificación
+05_wonderwall.wav,pop_rock_open,"Em,G,D,A",simplificación de Em7 Dsus4 A7sus4
+06_ho_hey.wav,folk_indie,"C,F,C,G",verso
+07_riptide.wav,folk_indie,"A#m,G#,C#",intro — lleva capo 1 así que suena un semitono arriba
+08_wagon_wheel.wav,folk_indie,"G,D,Em,C",verso
+09_highway_to_hell.wav,rock_distorsion,"A,D,G",coro
+10_black_pearl_jam.wav,rock_distorsion,"E,A",intro
+11_with_or_without_you.wav,rock_distorsion,"D,A,Bm,G",verso
+12_me_gustas_tu.wav,latin_pop,"Am,G,F,G",verso
+13_espacio_sideral.wav,latin_pop,"G,D,Em,C",verso
+14_clandestino.wav,latin_pop,"F#m,Bm,C#",progresión real confirmada por Victor
+15_boulevard.wav,tonalidades_raras,"Fm,Ab,Eb,Bb",verso en Fm
+16_hey_jude.wav,tonalidades_raras,"F,C,Bb",intro en F
+17_yesterday.wav,tonalidades_raras,"F,Em7,A7,Dm",verso
+18_thinking_out_loud.wav,mezcla_compleja,"D,Bm,G,A",pop moderno con inversiones
+19_blinding_lights.wav,mezcla_compleja,"Fm,Eb,Db,Cm",synth pop sin guitarra clara
+20_wonderwall_live.wav,vivo_ruidoso,"Em,G,D,A",versión MTV Unplugged con ruido

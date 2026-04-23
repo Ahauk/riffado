@@ -1,0 +1,32 @@
+# Dependencies
+node_modules/
+.venv/
+__pycache__/
+*.pyc
+
+# Builds
+dist/
+build/
+.expo/
+*.ipa
+*.apk
+
+# Secrets / env
+.env
+.env.local
+.env.*.local
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editor
+.vscode/
+.idea/
+*.swp
+
+# Validation artifacts
+validation/clips/*.wav
+validation/clips/*.mp3
+validation/clips/*.webm
+validation/results/*.csv
