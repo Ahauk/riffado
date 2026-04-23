@@ -4,6 +4,7 @@ import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { RecordScreen } from "../features/recording/screens/RecordScreen";
 import { AnalyzingScreen } from "../features/analysis/screens/AnalyzingScreen";
 import { ResultsScreen } from "../features/analysis/screens/ResultsScreen";
+import { ChordDetailScreen } from "../features/chords/screens/ChordDetailScreen";
 import { colors } from "../theme/tokens";
 import { RootStackParamList } from "./types";
 
@@ -37,6 +38,7 @@ export function RootNavigator() {
         <Stack.Screen name="Record" component={RecordScreen} />
         <Stack.Screen name="Analyzing" component={AnalyzingScreen} />
         <Stack.Screen name="Results" component={ResultsScreen} />
+        <Stack.Screen name="ChordDetail" component={ChordDetailScreen} />
       </Stack.Navigator>
     </NavigationContainer>
   );
