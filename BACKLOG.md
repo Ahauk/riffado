@@ -45,6 +45,13 @@
   - Idioma (es-MX / es-ES / futuro en).
 - **Branding real**: logo propio (no solo texto), splash asset diseñado,
   tipografía custom vía expo-font (Space Grotesk, Plus Jakarta Sans, etc.).
+- **Wordmark con clave de Fa** reemplazando una de las F de "Riffado".
+  La clave de Fa ("F clef") se llama así por la nota Fa y su forma
+  recuerda una F, lo cual encaja doblemente con la marca (Fa en solfeo
+  hispano → Rif-FA-do). Implementación sugerida: SVG custom que
+  integre la clave de fa con la tipografía Bebas Neue a la altura
+  correcta. Considerar variantes: RI𝄢FADO / RIF𝄢ADO / RIFFAD𝅝 (O como
+  redonda). Decidir en sesión de diseño dedicada.
 
 ## Mediano plazo — condicionado a validación
 
