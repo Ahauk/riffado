@@ -3,11 +3,14 @@ import { useState } from "react";
 import { FlatList, Pressable, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
+import { HelpBottomSheet } from "../../../components/help/HelpBottomSheet";
+import { InfoDot } from "../../../components/help/InfoDot";
+import { HELP, HelpEntry } from "../../../components/help/helpContent";
 import { ChordDiagramSvg } from "../../chords/components/ChordDiagramSvg";
 import { findShape } from "../../chords/data/chordShapes";
 import { RootStackParamList } from "../../../navigation/types";
 import { ChordSegment } from "../../../types/api";
-import { colors, radius, spacing, typography } from "../../../theme/tokens";
+import { BRAND_FONT, colors, radius, spacing, typography } from "../../../theme/tokens";
 
 type Props = NativeStackScreenProps<RootStackParamList, "Results">;
 
@@ -34,9 +37,10 @@ function confidenceBadge(v: number): ConfidenceBadge | null {
 interface ChordRowProps {
   chord: ChordSegment;
   onPress: () => void;
+  onBadgePress: () => void;
 }
 
-function ChordRow({ chord, onPress }: ChordRowProps) {
+function ChordRow({ chord, onPress, onBadgePress }: ChordRowProps) {
   const shape =
     findShape(chord.simplified.shape_id) ?? findShape(chord.simplified.name);
   const badge = confidenceBadge(chord.confidence);
@@ -50,13 +54,23 @@ function ChordRow({ chord, onPress }: ChordRowProps) {
     >
       <Text style={rowStyles.time}>{formatTime(chord.start_sec)}</Text>
       <View style={rowStyles.nameWrap}>
-        <Text style={rowStyles.name}>{chord.simplified.name}</Text>
-        {badge && (
-          <View style={[rowStyles.badge, { backgroundColor: badge.bg }]}>
-            <Text style={[rowStyles.badgeLabel, { color: badge.color }]}>
-              {badge.label}
-            </Text>
-          </View>
+        <View style={rowStyles.nameTopRow}>
+          <Text style={rowStyles.name}>{chord.simplified.name}</Text>
+          {badge && (
+            <Pressable
+              onPress={(e) => { e.stopPropagation?.(); onBadgePress(); }}
+              style={[rowStyles.badge, { backgroundColor: badge.bg }]}
+              accessibilityRole="button"
+              hitSlop={6}
+            >
+              <Text style={[rowStyles.badgeLabel, { color: badge.color }]}>
+                {badge.label}
+              </Text>
+            </Pressable>
+          )}
+        </View>
+        {chord.degree && (
+          <Text style={rowStyles.degree}>{chord.degree}</Text>
         )}
       </View>
       <View style={rowStyles.diagramBox}>
@@ -73,28 +87,59 @@ function ChordRow({ chord, onPress }: ChordRowProps) {
 export function ResultsScreen({ route, navigation }: Props) {
   const { analysis } = route.params;
   const [tab, setTab] = useState<Tab>("chords");
+  const [helpEntry, setHelpEntry] = useState<HelpEntry | null>(null);
 
   const modeLabel = analysis.key.mode === "major" ? "mayor" : "menor";
   const capo = analysis.suggested_capo.fret;
-  const capoLabel = capo === 0 ? "sin capo" : `capo ${capo}`;
 
   return (
     <SafeAreaView style={styles.safe}>
       <View style={styles.header}>
-        <Text style={styles.title}>Progresión</Text>
+        <View style={styles.titleRow}>
+          <Text style={styles.title}>Progresión</Text>
+          <Pressable
+            onPress={() => setHelpEntry(HELP.tonality)}
+            accessibilityRole="button"
+            style={styles.titleRomanPress}
+          >
+            <Text style={styles.titleRoman} numberOfLines={1}>
+              {analysis.key.root} {modeLabel}
+            </Text>
+          </Pressable>
+        </View>
         <View style={styles.metaRow}>
-          <View style={styles.metaPill}>
+          <Pressable
+            onPress={() => setHelpEntry(HELP.tonality)}
+            style={styles.metaPill}
+            accessibilityRole="button"
+          >
             <Text style={styles.metaPillLabel}>
               {analysis.key.root} {modeLabel}
             </Text>
-          </View>
-          <View style={styles.metaPill}>
-            <Text style={styles.metaPillLabel}>{capoLabel}</Text>
-          </View>
+            <Text style={styles.metaPillHint}> ?</Text>
+          </Pressable>
+          {analysis.progression_roman && (
+            <Pressable
+              onPress={() => setHelpEntry(HELP.progression)}
+              style={styles.metaPill}
+              accessibilityRole="button"
+            >
+              <Text style={styles.metaPillLabel}>{analysis.progression_roman}</Text>
+              <Text style={styles.metaPillHint}> ?</Text>
+            </Pressable>
+          )}
         </View>
-        {capo > 0 && (
-          <Text style={styles.capoReason}>{analysis.suggested_capo.reason}</Text>
-        )}
+        <View style={styles.capoRow}>
+          <Text style={styles.capoLine}>
+            {capo === 0
+              ? analysis.suggested_capo.reason
+              : `¿Más fácil? ${analysis.suggested_capo.reason}`}
+          </Text>
+          <InfoDot
+            onPress={() => setHelpEntry(HELP.capo)}
+            accessibilityLabel="Qué es un capo"
+          />
+        </View>
       </View>
 
       <View style={styles.tabs}>
@@ -129,6 +174,7 @@ export function ResultsScreen({ route, navigation }: Props) {
                   progression: analysis.chords,
                 })
               }
+              onBadgePress={() => setHelpEntry(HELP.confidence)}
             />
           )}
           contentContainerStyle={styles.list}
@@ -153,8 +199,14 @@ export function ResultsScreen({ route, navigation }: Props) {
       )}
 
       <Pressable style={styles.cta} onPress={() => navigation.popToTop()}>
-        <Text style={styles.ctaLabel}>Rifar otra</Text>
+        <Text style={styles.ctaLabel}>Rifate otra</Text>
       </Pressable>
+
+      <HelpBottomSheet
+        visible={helpEntry !== null}
+        entry={helpEntry}
+        onClose={() => setHelpEntry(null)}
+      />
     </SafeAreaView>
   );
 }
@@ -162,16 +214,46 @@ export function ResultsScreen({ route, navigation }: Props) {
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.bg },
   header: { padding: spacing.lg, gap: spacing.sm },
+  titleRow: {
+    flexDirection: "row",
+    alignItems: "flex-end",
+    justifyContent: "space-between",
+    gap: spacing.md,
+  },
   title: { ...typography.h1, color: colors.text },
+  titleRomanPress: { flexShrink: 1 },
+  titleRoman: {
+    fontSize: 20,
+    fontWeight: "700",
+    color: colors.primary,
+    letterSpacing: 0.5,
+    marginBottom: 6,
+  },
   metaRow: { flexDirection: "row", gap: spacing.sm, marginTop: spacing.xs },
   metaPill: {
+    flexDirection: "row",
+    alignItems: "center",
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.xs,
     borderRadius: radius.pill,
-    backgroundColor: colors.surfaceAlt,
+    backgroundColor: colors.primaryTint,
+    borderWidth: 1,
+    borderColor: colors.primaryTintBorder,
   },
-  metaPillLabel: { ...typography.caption, color: colors.text, fontWeight: "600" },
-  capoReason: { ...typography.caption, color: colors.textMuted, marginTop: spacing.xs },
+  metaPillLabel: { ...typography.caption, color: colors.primarySoft, fontWeight: "700" },
+  metaPillHint: { ...typography.caption, color: colors.primarySoft, fontWeight: "700", opacity: 0.7 },
+  capoRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.sm,
+    marginTop: spacing.xs,
+  },
+  capoLine: {
+    ...typography.caption,
+    color: colors.textMuted,
+    lineHeight: 18,
+    flex: 1,
+  },
 
   tabs: {
     flexDirection: "row",
@@ -220,7 +302,12 @@ const styles = StyleSheet.create({
     borderRadius: radius.md,
     alignItems: "center",
   },
-  ctaLabel: { ...typography.body, color: colors.text, fontWeight: "600" },
+  ctaLabel: {
+    fontFamily: BRAND_FONT,
+    fontSize: 24,
+    color: colors.text,
+    letterSpacing: 1.5,
+  },
 });
 
 const rowStyles = StyleSheet.create({
@@ -232,8 +319,15 @@ const rowStyles = StyleSheet.create({
   },
   rowPressed: { opacity: 0.6 },
   time: { ...typography.caption, color: colors.textMuted, width: 48 },
-  nameWrap: { flex: 1, flexDirection: "row", alignItems: "center", gap: spacing.sm },
+  nameWrap: { flex: 1, gap: 2 },
+  nameTopRow: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
   name: { ...typography.h2, color: colors.text },
+  degree: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: colors.primary,
+    letterSpacing: 0.5,
+  },
   badge: {
     paddingHorizontal: spacing.sm,
     paddingVertical: 3,

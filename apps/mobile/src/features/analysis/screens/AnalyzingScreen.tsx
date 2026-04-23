@@ -4,14 +4,71 @@ import { ActivityIndicator, Pressable, StyleSheet, Text, View } from "react-nati
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { RootStackParamList } from "../../../navigation/types";
+import { saveAnalysis } from "../../history/storage";
 import { uploadAndAnalyze } from "../../../services/api/analyses";
-import { colors, radius, spacing, typography } from "../../../theme/tokens";
+import { BRAND_FONT, colors, radius, spacing, typography } from "../../../theme/tokens";
 
 type Props = NativeStackScreenProps<RootStackParamList, "Analyzing">;
 
 type UiState =
   | { kind: "uploading" }
-  | { kind: "error"; message: string };
+  | { kind: "error"; title: string; message: string };
+
+const BRAND_WORD_RE = /(rifarte|rifate|rifar)/gi;
+
+/** Splits a title and renders any "rifar" variant in brand style + uppercase. */
+function renderBrandedTitle(text: string) {
+  const parts = text.split(BRAND_WORD_RE);
+  return parts.map((part, i) => {
+    if (BRAND_WORD_RE.test(part)) {
+      // Reset regex state between tests (global regex quirk).
+      BRAND_WORD_RE.lastIndex = 0;
+      return (
+        <Text key={i} style={styles.errorBrand}>
+          {part.toUpperCase()}
+        </Text>
+      );
+    }
+    BRAND_WORD_RE.lastIndex = 0;
+    return part;
+  });
+}
+
+function friendlyError(raw: string): { title: string; message: string } {
+  const lower = raw.toLowerCase();
+  if (lower.includes("too_short") || lower.includes("too short")) {
+    return {
+      title: "No pudimos ayudarte a rifarte esta canción",
+      message:
+        "La grabación debe durar al menos 5 segundos. Intenta de nuevo con un fragmento un poco más largo.",
+    };
+  }
+  if (lower.includes("no_harmony") || lower.includes("no harmony")) {
+    return {
+      title: "No pudimos ayudarte a rifarte esta canción",
+      message:
+        "No detectamos acordes claros. Prueba con una canción más acústica, un fragmento más limpio o acerca el micrófono a la bocina.",
+    };
+  }
+  if (lower.includes("unreadable_audio") || lower.includes("no pudimos leer")) {
+    return {
+      title: "No pudimos ayudarte a rifarte esta canción",
+      message:
+        "El audio no se pudo procesar. Intenta de nuevo.",
+    };
+  }
+  if (lower.includes("network") || lower.includes("fetch")) {
+    return {
+      title: "Sin conexión con el servidor",
+      message:
+        "Revisa que estés en la misma red que Riffado y vuelve a intentar.",
+    };
+  }
+  return {
+    title: "No pudimos ayudarte a rifarte esta canción",
+    message: "Intenta de nuevo. Si vuelve a fallar, cambia de fragmento.",
+  };
+}
 
 export function AnalyzingScreen({ navigation, route }: Props) {
   const { audioUri } = route.params;
@@ -24,12 +81,16 @@ export function AnalyzingScreen({ navigation, route }: Props) {
     try {
       const result = await uploadAndAnalyze(audioUri);
       if (runIdRef.current !== myRun) return;
+      // Persist to history before navigating so Home reflects it on return.
+      void saveAnalysis(result).catch((err) =>
+        console.warn("saveAnalysis failed", err)
+      );
       navigation.replace("Results", { analysis: result });
     } catch (e) {
       if (runIdRef.current !== myRun) return;
-      const message =
-        e instanceof Error ? e.message : "No pudimos analizar este audio.";
-      setState({ kind: "error", message });
+      const raw = e instanceof Error ? e.message : "";
+      const friendly = friendlyError(raw);
+      setState({ kind: "error", ...friendly });
     }
   }, [audioUri, navigation]);
 
@@ -41,7 +102,7 @@ export function AnalyzingScreen({ navigation, route }: Props) {
     return (
       <SafeAreaView style={styles.safe}>
         <View style={styles.container}>
-          <Text style={styles.errorTitle}>No pudimos rifar esta canción</Text>
+          <Text style={styles.errorTitle}>{renderBrandedTitle(state.title)}</Text>
           <Text style={styles.errorHint}>{state.message}</Text>
           <View style={styles.actions}>
             <Pressable style={[styles.btn, styles.primary]} onPress={run}>
@@ -79,6 +140,12 @@ const styles = StyleSheet.create({
   title: { ...typography.h2, color: colors.text, marginTop: spacing.lg },
   hint: { ...typography.body, color: colors.textMuted },
   errorTitle: { ...typography.h2, color: colors.text, textAlign: "center" },
+  errorBrand: {
+    fontFamily: BRAND_FONT,
+    color: colors.primary,
+    fontSize: 28,
+    letterSpacing: 1.5,
+  },
   errorHint: { ...typography.body, color: colors.textMuted, textAlign: "center" },
   actions: { marginTop: spacing.xl, gap: spacing.sm, width: "100%" },
   btn: {

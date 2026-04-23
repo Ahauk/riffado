@@ -96,6 +96,31 @@ def detect_segments(audio_path: str, win_sec: float = 1.0) -> list[RawSegment]:
     return out
 
 
+def median_filter(segments: list[RawSegment], window: int = 3) -> list[RawSegment]:
+    """Temporal smoothing: if a segment differs from both neighbours, adopt them.
+
+    Example: [G, G, C, G, G] with window=3 collapses the stray C. Removes noise
+    without blurring real chord changes (which span many consecutive frames).
+    """
+    if len(segments) < window:
+        return segments
+    out: list[RawSegment] = [segments[0]]
+    for i in range(1, len(segments) - 1):
+        prev, cur, nxt = segments[i - 1], segments[i], segments[i + 1]
+        if cur.chord != prev.chord and cur.chord != nxt.chord and prev.chord == nxt.chord:
+            # Replace the odd-one-out with the surrounding chord, low confidence.
+            out.append(RawSegment(
+                start_sec=cur.start_sec,
+                end_sec=cur.end_sec,
+                chord=prev.chord,
+                confidence=min(prev.confidence, nxt.confidence) * 0.85,
+            ))
+        else:
+            out.append(cur)
+    out.append(segments[-1])
+    return out
+
+
 def merge_consecutive(segments: list[RawSegment]) -> list[RawSegment]:
     if not segments:
         return []
@@ -114,8 +139,12 @@ def merge_consecutive(segments: list[RawSegment]) -> list[RawSegment]:
     return out
 
 
-def filter_short(segments: list[RawSegment], min_dur: float = 0.5) -> list[RawSegment]:
-    """Absorb sub-second segments into their neighbour."""
+def filter_short(segments: list[RawSegment], min_dur: float = 1.2) -> list[RawSegment]:
+    """Absorb short-duration segments into their neighbour.
+
+    Raises the floor so the UI shows chord changes that feel musical rather
+    than reporting every window flicker.
+    """
     if len(segments) < 2:
         return segments
     out: list[RawSegment] = []

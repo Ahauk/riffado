@@ -25,6 +25,7 @@ class ChordSegment(BaseModel):
     detected: DetectedChord
     simplified: SimplifiedChord
     confidence: float = Field(ge=0.0, le=1.0)
+    degree: str | None = None  # "I", "V", "vi", "VII", etc. None if non-diatonic.
 
 
 class KeyInfo(BaseModel):
@@ -51,5 +52,6 @@ class AnalysisResult(BaseModel):
     bpm: float
     suggested_capo: CapoSuggestion
     overall_confidence: float = Field(ge=0.0, le=1.0)
+    progression_roman: str | None = None  # e.g. "i – VII – iv – v"
     chords: list[ChordSegment]
     meta: EngineMeta

@@ -27,6 +27,7 @@ export interface ChordSegment {
   detected: DetectedChord;
   simplified: SimplifiedChord;
   confidence: number;
+  degree: string | null; // "I", "V", "vi", "VII"... null if non-diatonic
 }
 
 export interface KeyInfo {
@@ -50,6 +51,7 @@ export interface AnalysisResult {
   bpm: number;
   suggested_capo: CapoSuggestion;
   overall_confidence: number;
+  progression_roman: string | null;
   chords: ChordSegment[];
   meta: { engine: string; processing_ms: number };
 }

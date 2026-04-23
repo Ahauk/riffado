@@ -12,6 +12,7 @@ from app.services.capo_suggester import suggest_capo
 from app.services.chord_detection import (
     detect_segments,
     filter_short,
+    median_filter,
     merge_consecutive,
 )
 from app.services.chord_simplifier import (
@@ -20,6 +21,7 @@ from app.services.chord_simplifier import (
     simplify,
 )
 from app.services.key_estimation import estimate_key
+from app.services.roman_degree import degree_of, progression_label
 
 logger = logging.getLogger(__name__)
 router = APIRouter(tags=["analyze"])
@@ -38,33 +40,32 @@ async def analyze(audio: UploadFile = File(...)) -> AnalysisResult:
         # Load once to pull duration + key from the same buffer as the detector.
         try:
             y, sr = librosa.load(str(tmp_path), sr=22050, mono=True)
-        except Exception as e:
+        except Exception:
             logger.exception("Failed to load audio")
-            raise HTTPException(
-                status_code=415,
-                detail=f"No pudimos leer el audio: {e}",
-            )
+            raise HTTPException(status_code=415, detail="unreadable_audio")
 
         duration = float(len(y)) / sr if sr else 0.0
-        if duration < 1.0:
+        if duration < 5.0:
             raise HTTPException(
                 status_code=400,
-                detail="El fragmento es demasiado corto (<1s).",
+                detail="too_short",
             )
 
         raw = detect_segments(str(tmp_path))
-        cleaned = filter_short(merge_consecutive(raw), min_dur=0.5)
+        smoothed = median_filter(raw)
+        cleaned = filter_short(merge_consecutive(smoothed), min_dur=1.2)
 
         if not cleaned:
             raise HTTPException(
                 status_code=422,
-                detail="No detectamos armonía clara en el fragmento.",
+                detail="no_harmony",
             )
 
         key_root, key_mode, key_conf = estimate_key(y, sr)
 
         chord_names = [s.chord for s in cleaned]
         capo_fret, capo_reason = suggest_capo(chord_names)
+        progression_roman = progression_label(chord_names, key_root, key_mode)
 
         segments_payload = []
         for idx, seg in enumerate(cleaned):
@@ -80,6 +81,7 @@ async def analyze(audio: UploadFile = File(...)) -> AnalysisResult:
                     "shape_id": shape_id_for(simp_name),
                 },
                 "confidence": round(max(0.0, min(1.0, seg.confidence)), 2),
+                "degree": degree_of(seg.chord, key_root, key_mode),
             })
 
         overall = (
@@ -94,9 +96,10 @@ async def analyze(audio: UploadFile = File(...)) -> AnalysisResult:
             "bpm": 0.0,  # BPM not wired yet; keep contract stable.
             "suggested_capo": {"fret": capo_fret, "reason": capo_reason},
             "overall_confidence": round(overall, 2),
+            "progression_roman": progression_roman,
             "chords": segments_payload,
             "meta": {
-                "engine": "librosa-templates@0.1",
+                "engine": "librosa-templates@0.2",
                 "processing_ms": int((time.time() - t0) * 1000),
             },
         })
