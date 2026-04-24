@@ -24,28 +24,62 @@ NOTE_NAMES = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"]
 CHORD_RE = re.compile(r"^([A-G][#b]?)(.*)$")
 
 
+# Keep in sync with apps/api/app/services/chord_detection.py — same 60
+# templates + bias. Lowering the 7th bias favours triads; raising it
+# surfaces more 7ths. Tuned against this same validation set.
+SEVENTH_BIAS = 0.88
+
+
 def build_templates():
-    """24 chord templates (major + minor triads) as 12-d pitch-class vectors.
-    Using binary triad templates + some harmonic weighting works surprisingly well."""
+    """60 chord templates: 12 maj + 12 min + 12 maj7 + 12 dom7 + 12 min7."""
     templates = {}
+    biases = {}
     for i, root in enumerate(NOTE_NAMES):
         maj = np.zeros(12)
         maj[i] = 1.0
         maj[(i + 4) % 12] = 1.0
         maj[(i + 7) % 12] = 1.0
         templates[root] = maj / np.linalg.norm(maj)
+        biases[root] = 1.0
 
         minor = np.zeros(12)
         minor[i] = 1.0
         minor[(i + 3) % 12] = 1.0
         minor[(i + 7) % 12] = 1.0
         templates[root + "m"] = minor / np.linalg.norm(minor)
-    return templates
+        biases[root + "m"] = 1.0
+
+        maj7 = np.zeros(12)
+        maj7[i] = 1.0
+        maj7[(i + 4) % 12] = 1.0
+        maj7[(i + 7) % 12] = 1.0
+        maj7[(i + 11) % 12] = 1.0
+        templates[root + "maj7"] = maj7 / np.linalg.norm(maj7)
+        biases[root + "maj7"] = SEVENTH_BIAS
+
+        dom7 = np.zeros(12)
+        dom7[i] = 1.0
+        dom7[(i + 4) % 12] = 1.0
+        dom7[(i + 7) % 12] = 1.0
+        dom7[(i + 10) % 12] = 1.0
+        templates[root + "7"] = dom7 / np.linalg.norm(dom7)
+        biases[root + "7"] = SEVENTH_BIAS
+
+        min7 = np.zeros(12)
+        min7[i] = 1.0
+        min7[(i + 3) % 12] = 1.0
+        min7[(i + 7) % 12] = 1.0
+        min7[(i + 10) % 12] = 1.0
+        templates[root + "m7"] = min7 / np.linalg.norm(min7)
+        biases[root + "m7"] = SEVENTH_BIAS
+
+    return templates, biases
 
 
-TEMPLATES = build_templates()
+TEMPLATES, TEMPLATE_BIASES = build_templates()
 TEMPLATE_NAMES = list(TEMPLATES.keys())
-TEMPLATE_MATRIX = np.stack([TEMPLATES[n] for n in TEMPLATE_NAMES])  # (24, 12)
+TEMPLATE_MATRIX = np.stack([TEMPLATES[n] for n in TEMPLATE_NAMES])  # (60, 12)
+BIAS_VECTOR = np.array([TEMPLATE_BIASES[n] for n in TEMPLATE_NAMES])  # (60,)
 
 
 def detect_chords(audio_path: str, win_sec: float = 1.0):
@@ -65,7 +99,7 @@ def detect_chords(audio_path: str, win_sec: float = 1.0):
         if np.linalg.norm(win_chroma) == 0:
             continue
         win_chroma = win_chroma / np.linalg.norm(win_chroma)
-        scores = TEMPLATE_MATRIX @ win_chroma
+        scores = (TEMPLATE_MATRIX @ win_chroma) * BIAS_VECTOR
         idx = int(np.argmax(scores))
         segments.append((float(times[start]),
                          float(times[end - 1]),

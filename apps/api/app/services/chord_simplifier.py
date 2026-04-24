@@ -5,8 +5,9 @@ import re
 
 SHARP_TO_FLAT = {"A#": "Bb", "C#": "Db", "D#": "Eb", "F#": "F#", "G#": "Ab"}
 
-# Known shape ids we map to. These mirror the seed we'll load into chord_shapes.
+# Known shape ids we map to. Kept in sync with apps/mobile chordShapes.ts.
 OPEN_SHAPES = {
+    # Triads
     "C": "c_open", "D": "d_open", "E": "e_open", "F": "f_barre_1",
     "G": "g_open", "A": "a_open", "B": "b_barre_2",
     "Am": "am_open", "Bm": "bm_barre_2", "Cm": "cm_barre_3",
@@ -17,6 +18,14 @@ OPEN_SHAPES = {
     "C#m": "c_sharp_m_barre_4", "D#m": "d_sharp_m_barre_6",
     "F#m": "f_sharp_m_barre_2", "G#m": "g_sharp_m_barre_4",
     "A#m": "a_sharp_m_barre_1",
+    # Major 7
+    "Cmaj7": "cmaj7_open", "Dmaj7": "dmaj7_open", "Fmaj7": "fmaj7_open",
+    "Gmaj7": "gmaj7_open", "Amaj7": "amaj7_open",
+    # Dominant 7
+    "C7": "c7_open", "D7": "d7_open", "E7": "e7_open",
+    "G7": "g7_open", "A7": "a7_open", "B7": "b7_open",
+    # Minor 7
+    "Am7": "am7_open", "Dm7": "dm7_open", "Em7": "em7_open", "Bm7": "bm7_barre_2",
 }
 
 CHORD_RE = re.compile(r"^([A-G][#b]?)(.*)$")
@@ -34,12 +43,19 @@ def simplify(chord_name: str) -> str:
 
     Rules:
     - Drop slash-bass ("G/B" -> "G").
-    - Reduce 7/maj7/m7/add9/sus/dim/aug to their underlying triad.
-    - Keep major/minor as-is.
+    - Keep maj7/7/m7 when we have a diagram for that exact voicing;
+      otherwise collapse to the underlying triad.
+    - Everything more exotic (sus/add9/dim/aug/6/9/11/13) collapses to triad.
     """
     root, rest = _parse(chord_name)
     # Drop inversions first.
     rest = rest.split("/")[0]
+
+    # Preserve 7th-chord quality if we have a shape for it.
+    if rest in ("maj7", "7", "m7"):
+        candidate = root + rest
+        if candidate in OPEN_SHAPES:
+            return candidate
 
     if rest == "" or rest == "m":
         return root + rest
@@ -47,8 +63,7 @@ def simplify(chord_name: str) -> str:
     if rest.startswith("m") and not rest.startswith("maj"):
         return root + "m"
 
-    # Everything else (maj7, 7, sus4, sus2, add9, dim, aug, 6, 9, ...) collapses
-    # to the natural major triad for playability.
+    # Everything else (sus4, sus2, add9, dim, aug, 6, 9, ...) collapses to triad.
     return root
 
 

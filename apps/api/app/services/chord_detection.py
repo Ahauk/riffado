@@ -21,27 +21,72 @@ FLAT_TO_SHARP = {
 CHORD_RE = re.compile(r"^([A-G][#b]?)(.*)$")
 
 
-def _build_templates() -> tuple[list[str], np.ndarray]:
+# Templates with 4 active pitch classes (7ths) get a higher score by
+# construction against noisy chroma, because the extra 7th often lines up
+# with overtones of the root/3rd/5th. SEVENTH_BIAS multiplies the 7th-chord
+# scores before argmax to counter that. Calibrated against validation set
+# to preserve the triad baseline (70% exact / 75% root).
+SEVENTH_BIAS = 0.88
+
+
+def _build_templates() -> tuple[list[str], np.ndarray, np.ndarray]:
     names: list[str] = []
     vectors: list[np.ndarray] = []
+    biases: list[float] = []
+
     for i, root in enumerate(NOTE_NAMES):
+        # Major triad (1-3-5)
         maj = np.zeros(12)
         maj[i] = 1.0
         maj[(i + 4) % 12] = 1.0
         maj[(i + 7) % 12] = 1.0
         names.append(root)
         vectors.append(maj / np.linalg.norm(maj))
+        biases.append(1.0)
 
+        # Minor triad (1-b3-5)
         minor = np.zeros(12)
         minor[i] = 1.0
         minor[(i + 3) % 12] = 1.0
         minor[(i + 7) % 12] = 1.0
         names.append(root + "m")
         vectors.append(minor / np.linalg.norm(minor))
-    return names, np.stack(vectors)
+        biases.append(1.0)
+
+        # Major 7th (1-3-5-7)
+        maj7 = np.zeros(12)
+        maj7[i] = 1.0
+        maj7[(i + 4) % 12] = 1.0
+        maj7[(i + 7) % 12] = 1.0
+        maj7[(i + 11) % 12] = 1.0
+        names.append(root + "maj7")
+        vectors.append(maj7 / np.linalg.norm(maj7))
+        biases.append(SEVENTH_BIAS)
+
+        # Dominant 7th (1-3-5-b7)
+        dom7 = np.zeros(12)
+        dom7[i] = 1.0
+        dom7[(i + 4) % 12] = 1.0
+        dom7[(i + 7) % 12] = 1.0
+        dom7[(i + 10) % 12] = 1.0
+        names.append(root + "7")
+        vectors.append(dom7 / np.linalg.norm(dom7))
+        biases.append(SEVENTH_BIAS)
+
+        # Minor 7th (1-b3-5-b7)
+        min7 = np.zeros(12)
+        min7[i] = 1.0
+        min7[(i + 3) % 12] = 1.0
+        min7[(i + 7) % 12] = 1.0
+        min7[(i + 10) % 12] = 1.0
+        names.append(root + "m7")
+        vectors.append(min7 / np.linalg.norm(min7))
+        biases.append(SEVENTH_BIAS)
+
+    return names, np.stack(vectors), np.array(biases)
 
 
-_TEMPLATE_NAMES, _TEMPLATE_MATRIX = _build_templates()
+_TEMPLATE_NAMES, _TEMPLATE_MATRIX, _TEMPLATE_BIAS = _build_templates()
 
 
 @dataclass
@@ -85,7 +130,7 @@ def detect_segments(audio_path: str, win_sec: float = 1.0) -> list[RawSegment]:
         if nrm == 0:
             continue
         win = win / nrm
-        scores = _TEMPLATE_MATRIX @ win
+        scores = (_TEMPLATE_MATRIX @ win) * _TEMPLATE_BIAS
         idx = int(np.argmax(scores))
         out.append(RawSegment(
             start_sec=float(times[start]),
