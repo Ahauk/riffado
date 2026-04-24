@@ -20,7 +20,7 @@ from app.services.chord_simplifier import (
     shape_id_for,
     simplify,
 )
-from app.services.key_estimation import estimate_key
+from app.services.key_estimation import estimate_key_from_chords
 from app.services.roman_degree import degree_of, progression_label
 
 logger = logging.getLogger(__name__)
@@ -61,9 +61,12 @@ async def analyze(audio: UploadFile = File(...)) -> AnalysisResult:
                 detail="no_harmony",
             )
 
-        key_root, key_mode, key_conf = estimate_key(y, sr)
-
         chord_names = [s.chord for s in cleaned]
+        # Key is estimated AFTER chord detection so we can score candidate
+        # keys by how many detected chords are diatonic to them — much more
+        # robust than raw chroma K-S when there are few unique chords or
+        # overtones confuse the profile match.
+        key_root, key_mode, key_conf = estimate_key_from_chords(chord_names, y, sr)
         capo_fret, capo_reason = suggest_capo(chord_names)
         progression_roman = progression_label(chord_names, key_root, key_mode)
 

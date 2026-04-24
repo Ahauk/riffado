@@ -1,5 +1,6 @@
+import { useFocusEffect } from "@react-navigation/native";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
-import { useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { FlatList, Pressable, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
@@ -7,10 +8,14 @@ import { HelpBottomSheet } from "../../../components/help/HelpBottomSheet";
 import { InfoDot } from "../../../components/help/InfoDot";
 import { HELP, HelpEntry } from "../../../components/help/helpContent";
 import { ChordDiagramSvg } from "../../chords/components/ChordDiagramSvg";
+import { ChordPickerSheet } from "../../chords/components/ChordPickerSheet";
 import { findShape } from "../../chords/data/chordShapes";
+import { getAnalysisById, updateAnalysisChord } from "../../history/storage";
 import { RootStackParamList } from "../../../navigation/types";
-import { ChordSegment } from "../../../types/api";
+import { AnalysisResult, ChordSegment } from "../../../types/api";
 import { BRAND_FONT, colors, radius, spacing, typography } from "../../../theme/tokens";
+import { suggestAlternatives } from "../../../utils/chordSuggestions";
+import { computeProgressionLabel, degreeOf } from "../../../utils/roman";
 
 type Props = NativeStackScreenProps<RootStackParamList, "Results">;
 
@@ -20,6 +25,28 @@ function formatTime(sec: number): string {
   const m = Math.floor(sec / 60);
   const s = Math.floor(sec % 60);
   return `${m}:${String(s).padStart(2, "0")}`;
+}
+
+/** Chord as it should be displayed — correction if present, else detector. */
+interface DisplayChord {
+  name: string;
+  shape_id: string;
+  degree: string | null;
+}
+
+function displayOf(chord: ChordSegment): DisplayChord {
+  if (chord.user_correction) {
+    return {
+      name: chord.user_correction.simplified.name,
+      shape_id: chord.user_correction.simplified.shape_id,
+      degree: chord.user_correction.degree,
+    };
+  }
+  return {
+    name: chord.simplified.name,
+    shape_id: chord.simplified.shape_id,
+    degree: chord.degree,
+  };
 }
 
 interface ConfidenceBadge {
@@ -37,30 +64,60 @@ function confidenceBadge(v: number): ConfidenceBadge | null {
 interface ChordRowProps {
   chord: ChordSegment;
   onPress: () => void;
-  onBadgePress: () => void;
+  onEditPress: () => void;
 }
 
-function ChordRow({ chord, onPress, onBadgePress }: ChordRowProps) {
-  const shape =
-    findShape(chord.simplified.shape_id) ?? findShape(chord.simplified.name);
+/** Extract the quality suffix the detector found beyond the simple triad. */
+function richQualitySuffix(chord: ChordSegment): string | null {
+  const full = chord.detected.name;
+  const simple = chord.simplified.name;
+  if (!full || full === simple) return null;
+  if (full.startsWith(simple)) return full.slice(simple.length);
+  // Detector name uses a different root (e.g. "G/B" simplified to "G").
+  // We only surface the tail if it's a clean suffix; otherwise skip.
+  return null;
+}
+
+function ChordRow({ chord, onPress, onEditPress }: ChordRowProps) {
+  const display = displayOf(chord);
+  const shape = findShape(display.shape_id) ?? findShape(display.name);
   const badge = confidenceBadge(chord.confidence);
+  const corrected = Boolean(chord.user_correction);
+  const richSuffix = corrected ? null : richQualitySuffix(chord);
 
   return (
     <Pressable
       onPress={onPress}
       accessibilityRole="button"
-      accessibilityLabel={`Ver diagrama de ${chord.simplified.name}`}
+      accessibilityLabel={`Ver diagrama de ${display.name}`}
       style={({ pressed }) => [rowStyles.row, pressed && rowStyles.rowPressed]}
     >
       <Text style={rowStyles.time}>{formatTime(chord.start_sec)}</Text>
       <View style={rowStyles.nameWrap}>
         <View style={rowStyles.nameTopRow}>
-          <Text style={rowStyles.name}>{chord.simplified.name}</Text>
-          {badge && (
+          <Text style={rowStyles.name}>
+            {display.name}
+            {richSuffix && (
+              <Text style={rowStyles.richSuffix}> {richSuffix}</Text>
+            )}
+          </Text>
+          {corrected && (
             <Pressable
-              onPress={(e) => { e.stopPropagation?.(); onBadgePress(); }}
+              onPress={(e) => { e.stopPropagation?.(); onEditPress(); }}
+              hitSlop={6}
+              accessibilityRole="button"
+              accessibilityLabel="Editar acorde (corregido por ti)"
+              style={rowStyles.correctedMark}
+            >
+              <Text style={rowStyles.correctedMarkLabel}>✎ tú</Text>
+            </Pressable>
+          )}
+          {!corrected && badge && (
+            <Pressable
+              onPress={(e) => { e.stopPropagation?.(); onEditPress(); }}
               style={[rowStyles.badge, { backgroundColor: badge.bg }]}
               accessibilityRole="button"
+              accessibilityLabel={`Corregir acorde — ${badge.label}`}
               hitSlop={6}
             >
               <Text style={[rowStyles.badgeLabel, { color: badge.color }]}>
@@ -69,8 +126,8 @@ function ChordRow({ chord, onPress, onBadgePress }: ChordRowProps) {
             </Pressable>
           )}
         </View>
-        {chord.degree && (
-          <Text style={rowStyles.degree}>{chord.degree}</Text>
+        {display.degree && (
+          <Text style={rowStyles.degree}>{display.degree}</Text>
         )}
       </View>
       <View style={rowStyles.diagramBox}>
@@ -85,12 +142,68 @@ function ChordRow({ chord, onPress, onBadgePress }: ChordRowProps) {
 }
 
 export function ResultsScreen({ route, navigation }: Props) {
-  const { analysis } = route.params;
+  const [analysis, setAnalysis] = useState<AnalysisResult>(route.params.analysis);
   const [tab, setTab] = useState<Tab>("chords");
   const [helpEntry, setHelpEntry] = useState<HelpEntry | null>(null);
+  const [editingIdx, setEditingIdx] = useState<number | null>(null);
+
+  // When coming back from ChordDetail, re-read storage so corrections made
+  // there show up here. The analysis is already persisted right after
+  // /v1/analyze so this should always find a match.
+  useFocusEffect(
+    useCallback(() => {
+      let alive = true;
+      void getAnalysisById(analysis.analysis_id).then((fresh) => {
+        if (alive && fresh) setAnalysis(fresh);
+      });
+      return () => { alive = false; };
+    }, [analysis.analysis_id]),
+  );
 
   const modeLabel = analysis.key.mode === "major" ? "mayor" : "menor";
   const capo = analysis.suggested_capo.fret;
+  // Recompute the progression fingerprint every render so user corrections
+  // show up immediately and the pill stays in sync with the chord list.
+  const progressionLabel = useMemo(
+    () => computeProgressionLabel(analysis.chords, analysis.key),
+    [analysis.chords, analysis.key],
+  );
+  const editingChord =
+    editingIdx !== null
+      ? analysis.chords.find((c) => c.idx === editingIdx) ?? null
+      : null;
+
+  const applyCorrection = useCallback(
+    async (chordIdx: number, newName: string, newShapeId: string) => {
+      const degree = degreeOf(newName, analysis.key);
+      const correction = {
+        simplified: { name: newName, shape_id: newShapeId },
+        degree,
+        corrected_at: Date.now(),
+      };
+      setAnalysis((prev) => ({
+        ...prev,
+        chords: prev.chords.map((c) =>
+          c.idx === chordIdx ? { ...c, user_correction: correction } : c,
+        ),
+      }));
+      await updateAnalysisChord(analysis.analysis_id, chordIdx, correction);
+    },
+    [analysis.analysis_id, analysis.key],
+  );
+
+  const resetCorrection = useCallback(
+    async (chordIdx: number) => {
+      setAnalysis((prev) => ({
+        ...prev,
+        chords: prev.chords.map((c) =>
+          c.idx === chordIdx ? { ...c, user_correction: null } : c,
+        ),
+      }));
+      await updateAnalysisChord(analysis.analysis_id, chordIdx, null);
+    },
+    [analysis.analysis_id],
+  );
 
   return (
     <SafeAreaView style={styles.safe}>
@@ -116,16 +229,14 @@ export function ResultsScreen({ route, navigation }: Props) {
             <Text style={styles.metaPillLabel}>
               {analysis.key.root} {modeLabel}
             </Text>
-            <Text style={styles.metaPillHint}> ?</Text>
           </Pressable>
-          {analysis.progression_roman && (
+          {progressionLabel.length > 0 && (
             <Pressable
               onPress={() => setHelpEntry(HELP.progression)}
               style={styles.metaPill}
               accessibilityRole="button"
             >
-              <Text style={styles.metaPillLabel}>{analysis.progression_roman}</Text>
-              <Text style={styles.metaPillHint}> ?</Text>
+              <Text style={styles.metaPillLabel}>{progressionLabel}</Text>
             </Pressable>
           )}
         </View>
@@ -170,11 +281,13 @@ export function ResultsScreen({ route, navigation }: Props) {
               chord={item}
               onPress={() =>
                 navigation.navigate("ChordDetail", {
+                  analysisId: analysis.analysis_id,
                   chord: item,
                   progression: analysis.chords,
+                  keyInfo: analysis.key,
                 })
               }
-              onBadgePress={() => setHelpEntry(HELP.confidence)}
+              onEditPress={() => setEditingIdx(item.idx)}
             />
           )}
           contentContainerStyle={styles.list}
@@ -191,11 +304,16 @@ export function ResultsScreen({ route, navigation }: Props) {
       )}
 
       {tab === "chords" && (
-        <Text style={styles.footerHint}>
-          Toca cualquier acorde para ver su diagrama. Los marcados como
-          “revísalo” o “puede ser otro” son los que más vale la pena
-          comprobar a oído.
-        </Text>
+        <View style={styles.footerHintRow}>
+          <Text style={styles.footerHint}>
+            Toca la etiqueta amarilla o gris para corregir el acorde. Los
+            marcados son los que más vale la pena comprobar a oído.
+          </Text>
+          <InfoDot
+            onPress={() => setHelpEntry(HELP.confidence)}
+            accessibilityLabel="Qué significan las etiquetas"
+          />
+        </View>
       )}
 
       <Pressable style={styles.cta} onPress={() => navigation.popToTop()}>
@@ -206,6 +324,32 @@ export function ResultsScreen({ route, navigation }: Props) {
         visible={helpEntry !== null}
         entry={helpEntry}
         onClose={() => setHelpEntry(null)}
+      />
+
+      <ChordPickerSheet
+        visible={editingChord !== null}
+        currentName={editingChord ? displayOf(editingChord).name : ""}
+        detectedName={editingChord ? editingChord.simplified.name : ""}
+        detectedFullName={editingChord ? editingChord.detected.name : ""}
+        suggestions={
+          editingChord
+            ? suggestAlternatives(editingChord.simplified.name, analysis.key)
+            : []
+        }
+        hasCorrection={Boolean(editingChord?.user_correction)}
+        onPick={async (name, shapeId) => {
+          if (editingChord) {
+            await applyCorrection(editingChord.idx, name, shapeId);
+          }
+          setEditingIdx(null);
+        }}
+        onReset={async () => {
+          if (editingChord) {
+            await resetCorrection(editingChord.idx);
+          }
+          setEditingIdx(null);
+        }}
+        onClose={() => setEditingIdx(null)}
       />
     </SafeAreaView>
   );
@@ -241,7 +385,6 @@ const styles = StyleSheet.create({
     borderColor: colors.primaryTintBorder,
   },
   metaPillLabel: { ...typography.caption, color: colors.primarySoft, fontWeight: "700" },
-  metaPillHint: { ...typography.caption, color: colors.primarySoft, fontWeight: "700", opacity: 0.7 },
   capoRow: {
     flexDirection: "row",
     alignItems: "center",
@@ -288,12 +431,18 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
 
+  footerHintRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.sm,
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.sm,
+  },
   footerHint: {
     ...typography.caption,
     color: colors.textMuted,
-    paddingHorizontal: spacing.lg,
-    paddingTop: spacing.sm,
     lineHeight: 18,
+    flex: 1,
   },
   cta: {
     margin: spacing.lg,
@@ -322,6 +471,12 @@ const rowStyles = StyleSheet.create({
   nameWrap: { flex: 1, gap: 2 },
   nameTopRow: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
   name: { ...typography.h2, color: colors.text },
+  richSuffix: {
+    fontSize: 14,
+    fontWeight: "500",
+    color: colors.textMuted,
+    letterSpacing: 0.5,
+  },
   degree: {
     fontSize: 12,
     fontWeight: "600",
@@ -334,6 +489,19 @@ const rowStyles = StyleSheet.create({
     borderRadius: radius.pill,
   },
   badgeLabel: { fontSize: 11, fontWeight: "600" },
+  correctedMark: {
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 3,
+    borderRadius: radius.pill,
+    backgroundColor: colors.primaryTint,
+    borderWidth: 1,
+    borderColor: colors.primaryTintBorder,
+  },
+  correctedMarkLabel: {
+    fontSize: 11,
+    fontWeight: "700",
+    color: colors.primarySoft,
+  },
   diagramBox: {
     width: 40,
     height: 52,

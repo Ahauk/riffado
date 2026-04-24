@@ -10,7 +10,7 @@ import { Alert } from "react-native";
 
 export type RecordingStatus = "idle" | "recording" | "stopped" | "denied";
 
-const MAX_DURATION_MS = 15_000;
+const MAX_DURATION_MS = 60_000;
 const UPDATE_INTERVAL_MS = 80;
 const SAMPLE_BUFFER_SIZE = 32;
 

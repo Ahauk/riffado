@@ -8,11 +8,30 @@
 - ✅ Tab bar (Inicio / Historial / Afinador placeholder).
 - ✅ Fusión Home+Record en un solo tap.
 - ✅ Baseline detector 70% exact / 75% root (librosa + templates).
+- ✅ **Edición manual de acordes** — tap en badge o en botón "Cambiar acorde"
+  del detalle → picker con sugerencias inteligentes (sibling triad + acordes
+  diatónicos en orden de prominencia) + toggle "Ver todos". Corrección se
+  persiste en AsyncStorage sin mutar `detected`/`simplified` originales
+  (data gold preservada). Grado romano de la corrección se recomputa
+  client-side. Transparencia de calidades ricas: si el detector oyó `Gmaj7`
+  pero mostramos `G`, el sufijo aparece en gris junto al nombre.
+- ✅ **Estimación de tonalidad desde acordes detectados** — reemplaza el
+  K-S ingenuo sobre chroma cruda. Scorea tonalidades por hits diatónicos
+  sobre la progresión, con tiebreakers por primer-acorde-es-tónica,
+  tónica-aparece-en-progresión y chroma K-S como último recurso.
+- ✅ **Límite de grabación a 60 s** (antes 15 s) con contador mm:ss.
 
 ## Corto plazo (próximas 1–2 sesiones)
 
-- **Edición manual de acordes**: tap en badge "revísalo" o "puede ser otro" →
-  picker → corregir. Data gold para iterar detector.
+- **Upload de audio local** (expo-document-picker) — permite analizar
+  archivos del Files app (backing tracks descargados, Voice Memos, MP3s).
+  Audio de estudio es más limpio que mic del iPhone → mejor detección.
+  Endpoint backend ya lo soporta; solo falta el picker en mobile.
+- **Ampliar shapes a séptimas comunes** (Ruta B) — agregar diagramas para
+  C7/D7/E7/G7/A7/B7, Cmaj7/Dmaj7/Fmaj7/Gmaj7/Amaj7, Am7/Dm7/Em7/Bm7
+  (~15 shapes). Requiere sesión dedicada validando cada digitación con
+  Victor al lado — shape incorrecto enseña a tocar mal. Backend deja de
+  simplificar a triada cuando existe shape para la calidad detectada.
 - **Loop/playback del fragmento** con highlight del acorde que suena.
 - **Push al remoto + deploy backend a Fly.io** para probar sin el Mac local.
 - **Guardar el audio de cada análisis** (en el historial, junto al JSON).
@@ -25,6 +44,13 @@
 
 ## Mediano plazo
 
+- **Canciones completas (2–3 min)** — rediseño grande, no un feature más.
+  Implica: procesamiento server-side asíncrono con progress (~20–30 s),
+  detección de secciones (verso/coro/puente) para agrupar la progresión,
+  navegación por timeline en lugar de lista plana, y UX para ~80–120
+  acordes vs ~10–15 actuales. Sesión de diseño dedicada antes de
+  implementar. Hasta entonces, 60 s cubre el 90% del caso real
+  (verso entero o verso+coro).
 - **Afinador cromático integrado** (el que Victor pidió explícito).
   Pitch detection en tiempo real (YIN o PYIN), nota + cents off,
   visualizador aguja. Mic continuo ya lo tenemos vía expo-audio. 1–2 días.
@@ -55,22 +81,27 @@
 
 ## Mediano plazo — condicionado a validación
 
-- **Song recognition** (ShazamKit o ACRCloud).
-  Solo integrar si en beta ≥60% de usuarios piden "dime qué canción es".
-  Nunca reemplazar el detector de acordes: debe ser enriquecimiento de
-  metadata (título, artista, año) que complemente la progresión
-  detectada. Si se integra, actualizar el copy del splash: el mensaje
-  "no somos Shazam" dejaría de ser cierto y hay que rediseñar el
-  positioning hacia "detector + metadata".
-  Preferencia: **ShazamKit** (gratis en iOS, requiere Apple Developer
-  $99/año) sobre **ACRCloud** ($0.005/request + lock-in).
-  Si se integra ACRCloud: tier gratis ~500 requests/mes, luego $5/mes
-  por 1k requests. A escala (10k/mes) son $50/mes.
+- **Song recognition como HINT INTERNO** (ShazamKit).
+  Solo integrar si en beta ≥60% de usuarios piden "dime qué canción es",
+  y aun así **nunca** reemplazando al detector ni mostrando acordes
+  tomados de terceros. Uso permitido: ajustar confianza del detector
+  propio cuando sabemos la canción (ej. "es Let It Be → priorizo F sobre
+  Fmaj7 en zonas dudosas"). Metadata opcional (título/artista/año) como
+  enriquecimiento visual si se integra. El splash "no somos Shazam"
+  seguiría válido porque no damos el match al usuario como respuesta.
+  ShazamKit gratis con Apple Developer $99/año. ACRCloud descartado
+  ($0.005/req + lock-in).
+- **NO scrapear Ultimate Guitar / Chordify / E-Chords** — confirmado.
+  Viola ToS + copyright + App Store rejection. Ocultar título/artista
+  no resuelve el licensing de la progresión misma. Además rompe el
+  diferenciador de producto: si mostramos los acordes ya resueltos de
+  una canción conocida, estamos haciendo Chordify con menos catálogo.
+  Riffado vive de ser el detector de oído para cualquier rola,
+  incluyendo la que NO está en Chordify.
 - **Letras con licencia**: Musixmatch API (preferido por calidad + sync).
   Alternativa gratuita: botón "Buscar letra" que abre Safari en google.
-  Nunca hacer scraping: viola ToS + copyright + App Store rejection.
+  Nunca hacer scraping: mismas razones que arriba.
 - **Favoritos** en historial.
-- **Import desde librería local** del dispositivo (Files app).
 
 ## Largo plazo
 
@@ -115,6 +146,15 @@
   escalar. Plan de fix claro (Chordino → ML propio) documentado.
 - **Audio del iPhone en vivo**: mezclas complejas, distorsión, ruido
   ambiente degradan resultados. Comunicar expectativas en onboarding.
+- **Arpegios vs rasgueo**: chroma templates funcionan con ambos, pero
+  arpegios dan menos confianza (más badges "revísalo"). Canciones
+  acústicas tipo Dust in the Wind, Blackbird son casos de más ruido.
+  Chordino en mediano plazo mitiga.
+- **Dos instrumentos armónicos simultáneos** (rítmica + lead): el chroma
+  mezcla todas las notas, no separa por instrumento. Source separation
+  (Spleeter/Demucs) separa en voz/bajo/batería/otros pero NO distingue
+  guitarra rítmica vs lead (mismo timbre) — es investigación activa de
+  MIR. Workaround hoy: grabar en momentos sin lead.
 - **App Store rejection**: permisos de mic (copy ya incluido), nada de
   contenido con copyright sin licencia.
 - **Escalabilidad backend**: librosa + numba consumen CPU. Fly.io con

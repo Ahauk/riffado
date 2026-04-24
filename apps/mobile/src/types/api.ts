@@ -20,6 +20,13 @@ export interface SimplifiedChord {
   shape_id: string;
 }
 
+export interface UserCorrection {
+  simplified: SimplifiedChord;
+  /** Roman degree recomputed client-side; null if non-diatonic. */
+  degree: string | null;
+  corrected_at: number;
+}
+
 export interface ChordSegment {
   idx: number;
   start_sec: number;
@@ -28,6 +35,8 @@ export interface ChordSegment {
   simplified: SimplifiedChord;
   confidence: number;
   degree: string | null; // "I", "V", "vi", "VII"... null if non-diatonic
+  /** Present only when the user manually overrode the detected chord. */
+  user_correction?: UserCorrection | null;
 }
 
 export interface KeyInfo {

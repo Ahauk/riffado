@@ -179,3 +179,35 @@ export function findShape(idOrName: string | null | undefined): ChordShape | nul
 }
 
 export const ALL_SHAPES = SHAPES;
+
+const ROOT_ORDER = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
+
+/** Extract the root note ("C", "F#", "A"...) from a chord name like "F#m". */
+function rootOf(chordName: string): string {
+  const m = /^([A-G][#b]?)/.exec(chordName);
+  return m ? m[1] : chordName;
+}
+
+export interface ShapeGroup {
+  root: string;
+  shapes: ChordShape[];
+}
+
+/**
+ * Shapes grouped by root note, ordered chromatically (C → B). Within each
+ * group, major first, then minor, preserving SHAPES declaration order
+ * so fallbacks (barres) land after the open voicings when both exist.
+ */
+export function groupedByRoot(): ShapeGroup[] {
+  const byRoot = new Map<string, ChordShape[]>();
+  for (const s of SHAPES) {
+    const r = rootOf(s.chord_name);
+    const list = byRoot.get(r) ?? [];
+    list.push(s);
+    byRoot.set(r, list);
+  }
+  return ROOT_ORDER.filter((r) => byRoot.has(r)).map((root) => ({
+    root,
+    shapes: byRoot.get(root)!,
+  }));
+}

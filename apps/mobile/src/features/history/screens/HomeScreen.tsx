@@ -20,8 +20,10 @@ import { BRAND_FONT, colors, radius, spacing, typography } from "../../../theme/
 const BUTTON_SIZE = 240;
 
 function formatSeconds(ms: number): string {
-  const s = Math.floor(ms / 1000);
-  return `00:${String(s).padStart(2, "0")}`;
+  const total = Math.floor(ms / 1000);
+  const m = Math.floor(total / 60);
+  const s = total % 60;
+  return `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
 }
 
 export function HomeScreen() {
@@ -151,7 +153,7 @@ export function HomeScreen() {
   const label = isRecording ? "Detener" : "Rifate";
   const hint = isRecording
     ? `Escuchando... ${formatSeconds(rec.durationMs)}`
-    : "Reproduce 10–15 segundos de una canción";
+    : "Reproduce hasta 60 segundos de una canción";
 
   const handleStart = useCallback(async () => {
     setStarting(true);

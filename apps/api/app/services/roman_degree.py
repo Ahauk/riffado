@@ -110,13 +110,17 @@ def progression_label(
     key_root: str,
     key_mode: KeyMode,
 ) -> str:
-    """Return a compact "i – VII – iv – v" string over unique consecutive degrees.
-
-    Non-diatonic chords are rendered as "?".
+    """Compact harmonic fingerprint: unique degrees in order of first
+    appearance, joined with " – ". Non-diatonic chords collapse to a single
+    "?" regardless of how many distinct non-diatonic roots appeared. Mobile
+    recomputes this client-side to reflect user corrections — the backend
+    version must use the same algorithm so the first render matches.
     """
+    seen: set[str] = set()
     degrees: list[str] = []
     for name in chord_names:
         d = degree_of(name, key_root, key_mode) or "?"
-        if not degrees or degrees[-1] != d:
+        if d not in seen:
+            seen.add(d)
             degrees.append(d)
     return " – ".join(degrees)
