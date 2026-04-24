@@ -20,30 +20,63 @@
   sobre la progresión, con tiebreakers por primer-acorde-es-tónica,
   tónica-aparece-en-progresión y chroma K-S como último recurso.
 - ✅ **Límite de grabación a 60 s** (antes 15 s) con contador mm:ss.
+- ✅ **Huella armónica compacta**: el pill de grados ahora muestra únicos
+  en orden de primera aparición (`I – ii` en vez de `I – ii – I – ii...`),
+  recomputada client-side para reflejar correcciones del user. Se quitó
+  el `?` visual del hint porque se confundía con el símbolo de acorde
+  no-diatónico.
+- ✅ **Upload de audio local** (expo-document-picker) — botón "Sube una
+  rola y Riffate!" en Home abre Files app, filtra por `audio/*`, sube
+  al mismo endpoint. Backend rechaza >3 min con error `too_long`.
+  AnalyzingScreen rediseñada: ring animado, título Bebas, subtítulos
+  rotantes cada 3.5s entre fases reales ("Subiendo", "Escuchando notas",
+  "Detectando acordes", etc.), barra de progreso con easing 0→95% en
+  40s (salta a 100% en response).
+- ✅ **Swipe-to-delete** en historial con confirmación Alert.
+- ✅ **Shapes de 7mas comunes** (15 shapes): Cmaj7/Dmaj7/Fmaj7/Gmaj7/Amaj7,
+  C7/D7/E7/G7/A7/B7, Am7/Dm7/Em7/Bm7. Digitaciones estándar de
+  intermedio (Fmaj7 sin barré, Em7 versión `020000`, Bm7 sin barré).
+  El picker sugiere la 7ma detectada como candidata #1 si el detector
+  oyó algo más rico que triada (habilitado para cuando Ruta B expanda
+  templates del detector).
 
 ## Corto plazo (próximas 1–2 sesiones)
 
-- **Upload de audio local** (expo-document-picker) — permite analizar
-  archivos del Files app (backing tracks descargados, Voice Memos, MP3s).
-  Audio de estudio es más limpio que mic del iPhone → mejor detección.
-  Endpoint backend ya lo soporta; solo falta el picker en mobile.
-- **Ampliar shapes a séptimas comunes** (Ruta B) — agregar diagramas para
-  C7/D7/E7/G7/A7/B7, Cmaj7/Dmaj7/Fmaj7/Gmaj7/Amaj7, Am7/Dm7/Em7/Bm7
-  (~15 shapes). Requiere sesión dedicada validando cada digitación con
-  Victor al lado — shape incorrecto enseña a tocar mal. Backend deja de
-  simplificar a triada cuando existe shape para la calidad detectada.
+- **Detector templates con 7mas** (Ruta B) — expandir `chord_detection.py`
+  de 24 templates (12 mayor + 12 menor) a ~60 (añadir maj7/7/m7).
+  Trabajo de investigación: los templates de 4 notas reciben más match
+  por construcción → riesgo de falsos positivos. Hay que calibrar pesos
+  y re-correr validación (baseline 70%/75% sobre 20 clips) para no
+  degradar. Habilita detección automática, hoy el user corrige a mano.
 - **Loop/playback del fragmento** con highlight del acorde que suena.
-- **Push al remoto + deploy backend a Fly.io** para probar sin el Mac local.
 - **Guardar el audio de cada análisis** (en el historial, junto al JSON).
   Hoy solo guardamos la progresión; si el user quiere oír de nuevo el
   fragmento para comparar, no puede.
 - **Renombrar análisis** del historial (ej. "Let It Be – verso").
-- **Borrar items del historial** con swipe-to-delete.
 - **Compartir progresión** como imagen (render de la lista + diagramas
   para pegar en WhatsApp, Instagram, etc.).
+- **Fingerpicking / arpegios**: actualmente el detector funciona con
+  arpegios pero con menos confianza (más badges "revísalo"). Ventanas
+  de análisis más largas o pesos más altos en notas bajas (bassline
+  suele cantar la raíz del acorde) podrían mitigar. Chordino en
+  mediano plazo resuelve de base.
 
 ## Mediano plazo
 
+- **Deploy backend a Fly.io + TestFlight**: condicionado a que Victor
+  esté listo para compartir con amigos beta. Fly (~$2–5/mes con
+  auto-stop) es prerrequisito de TestFlight (Apple Developer $99/año).
+  Si no hay usuarios externos todavía, ambos son prematuros — por eso
+  salen del corto plazo. Cuando toque: Dockerfile + fly.toml, 1 GB RAM
+  shared-cpu-1x, luego Apple Developer y empaquetado para TestFlight.
+- **Shapes de 9nas comunes**: maj9/9/m9 en raíces básicas (C, D, E, F,
+  G, A). ~10–15 shapes más. Requiere validar si el detector de chroma
+  las reconoce decente (una 9na añade 5ta nota — chroma template de 5
+  notas tiende a competir con triadas y dominantes 7 por confusión).
+  11vas/13vas **NO** (múltiples voicings válidos por acorde, target
+  guitarrista LATAM casi no los toca, detector chroma no los reconocerá).
+- **Detección de secciones (verso/coro/puente)** — novelty detection con
+  librosa.segment. Útil cuando pasemos a canciones de 2–3 min.
 - **Canciones completas (2–3 min)** — rediseño grande, no un feature más.
   Implica: procesamiento server-side asíncrono con progress (~20–30 s),
   detección de secciones (verso/coro/puente) para agrupar la progresión,

@@ -162,6 +162,88 @@ const SHAPES: ChordShape[] = [
     base_fret: 1, difficulty: 3,
     barre: { fret: 1, from_string: 5, to_string: 1 },
   },
+
+  // ── Major 7 (maj7) ─────────────────────────────────────────────────
+  {
+    shape_id: "cmaj7_open", chord_name: "Cmaj7",
+    frets: [-1, 3, 2, 0, 0, 0], fingers: [0, 3, 2, 0, 0, 0],
+    base_fret: 1, difficulty: 1,
+  },
+  {
+    shape_id: "dmaj7_open", chord_name: "Dmaj7",
+    frets: [-1, -1, 0, 2, 2, 2], fingers: [0, 0, 0, 1, 2, 3],
+    base_fret: 1, difficulty: 2,
+  },
+  {
+    shape_id: "fmaj7_open", chord_name: "Fmaj7",
+    frets: [1, -1, 2, 2, 1, 0], fingers: [1, 0, 3, 4, 2, 0],
+    base_fret: 1, difficulty: 2,
+  },
+  {
+    shape_id: "gmaj7_open", chord_name: "Gmaj7",
+    frets: [3, 2, 0, 0, 0, 2], fingers: [3, 2, 0, 0, 0, 1],
+    base_fret: 1, difficulty: 2,
+  },
+  {
+    shape_id: "amaj7_open", chord_name: "Amaj7",
+    frets: [-1, 0, 2, 1, 2, 0], fingers: [0, 0, 2, 1, 3, 0],
+    base_fret: 1, difficulty: 2,
+  },
+
+  // ── Dominant 7 (7) ─────────────────────────────────────────────────
+  {
+    shape_id: "c7_open", chord_name: "C7",
+    frets: [-1, 3, 2, 3, 1, 0], fingers: [0, 3, 2, 4, 1, 0],
+    base_fret: 1, difficulty: 2,
+  },
+  {
+    shape_id: "d7_open", chord_name: "D7",
+    frets: [-1, -1, 0, 2, 1, 2], fingers: [0, 0, 0, 2, 1, 3],
+    base_fret: 1, difficulty: 1,
+  },
+  {
+    shape_id: "e7_open", chord_name: "E7",
+    frets: [0, 2, 0, 1, 0, 0], fingers: [0, 2, 0, 1, 0, 0],
+    base_fret: 1, difficulty: 1,
+  },
+  {
+    shape_id: "g7_open", chord_name: "G7",
+    frets: [3, 2, 0, 0, 0, 1], fingers: [3, 2, 0, 0, 0, 1],
+    base_fret: 1, difficulty: 1,
+  },
+  {
+    shape_id: "a7_open", chord_name: "A7",
+    frets: [-1, 0, 2, 0, 2, 0], fingers: [0, 0, 2, 0, 3, 0],
+    base_fret: 1, difficulty: 1,
+  },
+  {
+    shape_id: "b7_open", chord_name: "B7",
+    frets: [-1, 2, 1, 2, 0, 2], fingers: [0, 2, 1, 3, 0, 4],
+    base_fret: 1, difficulty: 2,
+  },
+
+  // ── Minor 7 (m7) ───────────────────────────────────────────────────
+  {
+    shape_id: "am7_open", chord_name: "Am7",
+    frets: [-1, 0, 2, 0, 1, 0], fingers: [0, 0, 2, 0, 1, 0],
+    base_fret: 1, difficulty: 1,
+  },
+  {
+    shape_id: "dm7_open", chord_name: "Dm7",
+    frets: [-1, -1, 0, 2, 1, 1], fingers: [0, 0, 0, 2, 1, 1],
+    base_fret: 1, difficulty: 2,
+  },
+  {
+    shape_id: "em7_open", chord_name: "Em7",
+    frets: [0, 2, 0, 0, 0, 0], fingers: [0, 2, 0, 0, 0, 0],
+    base_fret: 1, difficulty: 1,
+  },
+  {
+    shape_id: "bm7_barre_2", chord_name: "Bm7",
+    frets: [-1, 2, 4, 2, 3, 2], fingers: [0, 1, 3, 1, 2, 1],
+    base_fret: 2, difficulty: 3,
+    barre: { fret: 2, from_string: 5, to_string: 1 },
+  },
 ];
 
 const BY_ID: Record<string, ChordShape> = Object.fromEntries(

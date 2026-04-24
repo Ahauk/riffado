@@ -333,7 +333,11 @@ export function ResultsScreen({ route, navigation }: Props) {
         detectedFullName={editingChord ? editingChord.detected.name : ""}
         suggestions={
           editingChord
-            ? suggestAlternatives(editingChord.simplified.name, analysis.key)
+            ? suggestAlternatives(
+                editingChord.simplified.name,
+                editingChord.detected.name,
+                analysis.key,
+              )
             : []
         }
         hasCorrection={Boolean(editingChord?.user_correction)}

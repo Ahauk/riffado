@@ -176,7 +176,11 @@ export function ChordDetailScreen({ route, navigation }: Props) {
         currentName={active.name}
         detectedName={activeSeg.simplified.name}
         detectedFullName={activeSeg.detected.name}
-        suggestions={suggestAlternatives(activeSeg.simplified.name, keyInfo)}
+        suggestions={suggestAlternatives(
+          activeSeg.simplified.name,
+          activeSeg.detected.name,
+          keyInfo,
+        )}
         hasCorrection={active.corrected}
         onPick={async (name, shape_id) => {
           await applyCorrection(name, shape_id);

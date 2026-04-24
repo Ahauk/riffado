@@ -103,27 +103,43 @@ function siblingTriad(root: string, triad: Triad): string | null {
 /**
  * Compact ranked list of alternative chord names, excluding the detected one.
  * Each returned name has a diagram in chordShapes (no dead ends).
+ *
+ * Priority order:
+ *   1) Detector's richer quality (e.g. Gmaj7 when simplified is G) — only
+ *      when the full name differs from the simplified one AND we have a
+ *      shape for it. Biggest payoff when the detector heard a 7th.
+ *   2) Sibling triad (maj↔min) — biggest payoff for major/minor confusion,
+ *      the most common chroma template mistake.
+ *   3) Diatonic chords of the key, in tonal prominence order.
  */
 export function suggestAlternatives(
-  detectedName: string,
+  simplifiedName: string,
+  detectedFullName: string,
   key: KeyInfo,
   limit = 5,
 ): string[] {
-  const { root, rest } = parseChord(detectedName);
+  const { root, rest } = parseChord(simplifiedName);
   const triad = triadOf(rest);
-  const detectedTriadName = root + triadToSuffix(triad);
 
   const out: string[] = [];
-  const seen = new Set<string>([detectedName, detectedTriadName]);
+  const seen = new Set<string>([simplifiedName]);
 
-  // 1) Sibling triad first (maj↔min). Biggest payoff for detector mistakes.
+  // 1) Richer detector quality if it differs and we have a shape for it.
+  if (detectedFullName && detectedFullName !== simplifiedName) {
+    if (findShape(detectedFullName) && !seen.has(detectedFullName)) {
+      out.push(detectedFullName);
+      seen.add(detectedFullName);
+    }
+  }
+
+  // 2) Sibling triad (maj↔min).
   const sibling = siblingTriad(root, triad);
   if (sibling && findShape(sibling) && !seen.has(sibling)) {
     out.push(sibling);
     seen.add(sibling);
   }
 
-  // 2) Diatonic chords, in tonal prominence order.
+  // 3) Diatonic chords, in tonal prominence order.
   for (const name of diatonicChords(key)) {
     if (out.length >= limit) break;
     if (seen.has(name)) continue;
