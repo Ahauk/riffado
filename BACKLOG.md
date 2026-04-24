@@ -34,21 +34,36 @@
   40s (salta a 100% en response).
 - ✅ **Swipe-to-delete** en historial con confirmación Alert.
 - ✅ **Shapes de 7mas comunes** (15 shapes): Cmaj7/Dmaj7/Fmaj7/Gmaj7/Amaj7,
-  C7/D7/E7/G7/A7/B7, Am7/Dm7/Em7/Bm7. Digitaciones estándar de
-  intermedio (Fmaj7 sin barré, Em7 versión `020000`, Bm7 sin barré).
-  El picker sugiere la 7ma detectada como candidata #1 si el detector
-  oyó algo más rico que triada (habilitado para cuando Ruta B expanda
-  templates del detector).
+  C7/D7/E7/G7/A7/B7, Am7/Dm7/Em7/Bm7. Versiones "correctas/completas"
+  validadas con guitarra (Fmaj7 `1x2210`, Em7 `020000`, Bm7 barré
+  `x24232`). Scope de usuario incluye avanzados, no solo intermedios.
+- ✅ **Ruta B del detector — reconoce 7mas automáticamente.**
+  `chord_detection.py` pasa de 24 a 60 templates (añade maj7/7/m7 en
+  12 raíces). `SEVENTH_BIAS = 0.88` compensa la ventaja matemática de
+  templates de 4 notas. `simplify()` mantiene la 7ma cuando hay shape.
+  Validación: 70%/75% → **72%/75%** (sin regresión, leve mejora).
+  Casos observados: Em7 en Yesterday se detecta correctamente.
+  Hay falsos positivos moderados (ej. Bm7 donde era Bm) pero
+  musicalmente las notas son similares (Bm7 = Bm + 7ma neutra).
+  Tuning pendiente basado en pruebas reales con el iPhone de Victor.
 
 ## Corto plazo (próximas 1–2 sesiones)
 
-- **Detector templates con 7mas** (Ruta B) — expandir `chord_detection.py`
-  de 24 templates (12 mayor + 12 menor) a ~60 (añadir maj7/7/m7).
-  Trabajo de investigación: los templates de 4 notas reciben más match
-  por construcción → riesgo de falsos positivos. Hay que calibrar pesos
-  y re-correr validación (baseline 70%/75% sobre 20 clips) para no
-  degradar. Habilita detección automática, hoy el user corrige a mano.
-- **Loop/playback del fragmento** con highlight del acorde que suena.
+- **Calibrar SEVENTH_BIAS con pruebas reales** — Victor debe probar
+  en iPhone con (1) backing track puro triadas para confirmar que no
+  salen 7mas falsas, (2) canción con 7ma real (bolero/bossa/Beatles)
+  para confirmar detección, (3) clips previos para regresión.
+  Si faltan 7mas reales → subir a 0.90. Si sobran falsas → bajar a 0.85.
+- **Arpegios / fingerpicking** (Opción B de la sesión pasada).
+  Ventanas de análisis más largas (~2-3s vs 1s actual) o pesar el
+  bajo (suele cantar la raíz) podrían mitigar la baja confianza que
+  hoy da arpegio puro. Chordino ya en mediano plazo es la solución
+  definitiva.
+- **UX pequeño y rápido** (Opción C de la sesión pasada):
+  - **Renombrar análisis** en historial (~30 min).
+  - **Compartir progresión** como imagen (~1-2 h).
+  - **Loop/playback del fragmento** con highlight del acorde actual
+    (~2 h — requiere expo-audio playback + timeline sync).
 - **Guardar el audio de cada análisis** (en el historial, junto al JSON).
   Hoy solo guardamos la progresión; si el user quiere oír de nuevo el
   fragmento para comparar, no puede.
