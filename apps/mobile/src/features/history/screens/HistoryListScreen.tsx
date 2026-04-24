@@ -1,7 +1,8 @@
 import { useFocusEffect, useNavigation } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
-import { useCallback } from "react";
-import { FlatList, Pressable, StyleSheet, Text, View } from "react-native";
+import { useCallback, useRef } from "react";
+import { Alert, Animated, FlatList, Pressable, StyleSheet, Text, View } from "react-native";
+import { Swipeable } from "react-native-gesture-handler";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { RootStackParamList } from "../../../navigation/types";
@@ -13,42 +14,97 @@ import { HistoryItem } from "../storage";
 interface HistoryRowProps {
   item: HistoryItem;
   onPress: () => void;
+  onDelete: () => void;
 }
 
-function HistoryRow({ item, onPress }: HistoryRowProps) {
+interface DeleteActionProps {
+  progress: Animated.AnimatedInterpolation<number>;
+  onPress: () => void;
+}
+
+/** Red "Borrar" action that slides in from the right as the row is swiped. */
+function DeleteAction({ progress, onPress }: DeleteActionProps) {
+  const translateX = progress.interpolate({
+    inputRange: [0, 1],
+    outputRange: [80, 0],
+    extrapolate: "clamp",
+  });
+  return (
+    <Animated.View
+      style={[rowStyles.deleteAction, { transform: [{ translateX }] }]}
+    >
+      <Pressable
+        onPress={onPress}
+        accessibilityRole="button"
+        accessibilityLabel="Borrar del historial"
+        style={rowStyles.deleteBtn}
+      >
+        <Text style={rowStyles.deleteLabel}>Borrar</Text>
+      </Pressable>
+    </Animated.View>
+  );
+}
+
+function HistoryRow({ item, onPress, onDelete }: HistoryRowProps) {
   const a = item.analysis;
   const uniqueChords = Array.from(
     new Set(a.chords.map((c) => c.simplified.name))
   );
   const modeLabel = a.key.mode === "major" ? "mayor" : "menor";
+  const swipeRef = useRef<Swipeable>(null);
+
+  const confirmDelete = useCallback(() => {
+    Alert.alert(
+      "Borrar análisis",
+      `¿Seguro que quieres borrar este análisis de ${a.key.root} ${modeLabel}?`,
+      [
+        {
+          text: "Cancelar",
+          style: "cancel",
+          onPress: () => swipeRef.current?.close(),
+        },
+        { text: "Borrar", style: "destructive", onPress: onDelete },
+      ],
+    );
+  }, [a.key.root, modeLabel, onDelete]);
+
   return (
-    <Pressable
-      onPress={onPress}
-      style={({ pressed }) => [rowStyles.row, pressed && rowStyles.pressed]}
-      accessibilityRole="button"
-    >
-      <View style={rowStyles.topRow}>
-        <Text style={rowStyles.key}>
-          {a.key.root} {modeLabel}
-        </Text>
-        <Text style={rowStyles.meta}>{timeAgo(item.saved_at)}</Text>
-      </View>
-      <Text style={rowStyles.chords} numberOfLines={1}>
-        {uniqueChords.join("  ·  ")}
-      </Text>
-      {a.progression_roman && (
-        <Text style={rowStyles.progression} numberOfLines={1}>
-          {a.progression_roman}
-        </Text>
+    <Swipeable
+      ref={swipeRef}
+      renderRightActions={(progress) => (
+        <DeleteAction progress={progress} onPress={confirmDelete} />
       )}
-    </Pressable>
+      rightThreshold={40}
+      overshootRight={false}
+    >
+      <Pressable
+        onPress={onPress}
+        style={({ pressed }) => [rowStyles.row, pressed && rowStyles.pressed]}
+        accessibilityRole="button"
+      >
+        <View style={rowStyles.topRow}>
+          <Text style={rowStyles.key}>
+            {a.key.root} {modeLabel}
+          </Text>
+          <Text style={rowStyles.meta}>{timeAgo(item.saved_at)}</Text>
+        </View>
+        <Text style={rowStyles.chords} numberOfLines={1}>
+          {uniqueChords.join("  ·  ")}
+        </Text>
+        {a.progression_roman && (
+          <Text style={rowStyles.progression} numberOfLines={1}>
+            {a.progression_roman}
+          </Text>
+        )}
+      </Pressable>
+    </Swipeable>
   );
 }
 
 export function HistoryListScreen() {
   const navigation =
     useNavigation<NativeStackNavigationProp<RootStackParamList>>();
-  const { items, refresh } = useHistory();
+  const { items, refresh, remove } = useHistory();
 
   useFocusEffect(
     useCallback(() => {
@@ -79,6 +135,7 @@ export function HistoryListScreen() {
               onPress={() =>
                 navigation.navigate("Results", { analysis: item.analysis })
               }
+              onDelete={() => void remove(item.id)}
             />
           )}
           contentContainerStyle={styles.list}
@@ -125,4 +182,23 @@ const rowStyles = StyleSheet.create({
   meta: { ...typography.caption, color: colors.textMuted },
   chords: { ...typography.body, color: colors.text },
   progression: { ...typography.caption, color: colors.primarySoft, fontWeight: "600" },
+
+  deleteAction: {
+    justifyContent: "center",
+    paddingLeft: spacing.sm,
+  },
+  deleteBtn: {
+    backgroundColor: colors.danger,
+    borderRadius: radius.md,
+    paddingHorizontal: spacing.lg,
+    height: "100%",
+    minHeight: 72,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  deleteLabel: {
+    ...typography.body,
+    color: colors.text,
+    fontWeight: "700",
+  },
 });
