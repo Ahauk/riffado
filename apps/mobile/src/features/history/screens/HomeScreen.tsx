@@ -1,7 +1,9 @@
 import { useNavigation } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
+import * as DocumentPicker from "expo-document-picker";
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import {
+  Alert,
   Animated,
   Easing,
   Pressable,
@@ -166,6 +168,26 @@ export function HomeScreen() {
 
   const onPress = isRecording ? rec.stop : handleStart;
 
+  const handleUpload = useCallback(async () => {
+    try {
+      const res = await DocumentPicker.getDocumentAsync({
+        type: "audio/*",
+        copyToCacheDirectory: true,
+        multiple: false,
+      });
+      if (res.canceled) return;
+      const file = res.assets?.[0];
+      if (!file?.uri) return;
+      rootNav.navigate("Analyzing", { audioUri: file.uri });
+    } catch (e) {
+      console.warn("upload picker failed", e);
+      Alert.alert(
+        "No pudimos abrir el archivo",
+        "Intenta de nuevo o elige otro archivo de audio.",
+      );
+    }
+  }, [rootNav]);
+
   return (
     <SafeAreaView style={styles.safe} edges={["top", "left", "right"]}>
       {!immersive && (
@@ -285,6 +307,21 @@ export function HomeScreen() {
         </View>
 
         <Text style={styles.hint}>{hint}</Text>
+
+        {!immersive && (
+          <Pressable
+            onPress={handleUpload}
+            accessibilityRole="button"
+            accessibilityLabel="Subir una canción desde tus archivos"
+            style={({ pressed }) => [
+              styles.uploadBtn,
+              pressed && styles.uploadBtnPressed,
+            ]}
+          >
+            <Text style={styles.uploadIcon}>📁</Text>
+            <Text style={styles.uploadLabel}>Sube una rola y Riffate!</Text>
+          </Pressable>
+        )}
       </View>
     </SafeAreaView>
   );
@@ -411,4 +448,24 @@ const styles = StyleSheet.create({
     letterSpacing: 2,
   },
   hint: { ...typography.caption, color: colors.textMuted },
+
+  uploadBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.sm,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.lg,
+    borderRadius: radius.pill,
+    backgroundColor: colors.primaryTint,
+    borderWidth: 1,
+    borderColor: colors.primaryTintBorder,
+    marginTop: spacing.md,
+  },
+  uploadBtnPressed: { opacity: 0.7 },
+  uploadIcon: { fontSize: 16 },
+  uploadLabel: {
+    ...typography.body,
+    color: colors.primarySoft,
+    fontWeight: "700",
+  },
 });

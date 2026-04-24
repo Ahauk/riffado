@@ -4,8 +4,11 @@ import { API_URL, ApiError } from "./client";
 function inferMimeType(uri: string): string {
   const lower = uri.toLowerCase();
   if (lower.endsWith(".m4a") || lower.endsWith(".aac")) return "audio/m4a";
+  if (lower.endsWith(".mp3")) return "audio/mpeg";
   if (lower.endsWith(".wav")) return "audio/wav";
   if (lower.endsWith(".caf")) return "audio/x-caf";
+  if (lower.endsWith(".flac")) return "audio/flac";
+  if (lower.endsWith(".ogg") || lower.endsWith(".opus")) return "audio/ogg";
   return "audio/m4a";
 }
 

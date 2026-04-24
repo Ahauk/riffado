@@ -50,6 +50,13 @@ async def analyze(audio: UploadFile = File(...)) -> AnalysisResult:
                 status_code=400,
                 detail="too_short",
             )
+        # Guard against whole albums / podcasts uploaded by mistake. 3 min is
+        # enough for any typical song; longer files probably aren't music.
+        if duration > 180.0:
+            raise HTTPException(
+                status_code=400,
+                detail="too_long",
+            )
 
         raw = detect_segments(str(tmp_path))
         smoothed = median_filter(raw)
