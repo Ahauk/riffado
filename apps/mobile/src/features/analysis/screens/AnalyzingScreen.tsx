@@ -128,10 +128,15 @@ export function AnalyzingScreen({ navigation, route }: Props) {
         useNativeDriver: false,
       }).start();
 
-      // Persist to history before navigating so Home reflects it on return.
-      void saveAnalysis(result).catch((err) =>
-        console.warn("saveAnalysis failed", err),
-      );
+      // Persist to history (and copy the audio into the document directory)
+      // BEFORE navigating to Results. Otherwise the focus effect there reads
+      // the storage row before audio_uri has been written and the player
+      // never appears for the freshly analysed clip — only after a refresh.
+      try {
+        await saveAnalysis(result, audioUri);
+      } catch (err) {
+        console.warn("saveAnalysis failed", err);
+      }
       navigation.replace("Results", { analysis: result });
     } catch (e) {
       if (runIdRef.current !== myRun) return;

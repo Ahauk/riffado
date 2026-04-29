@@ -15,6 +15,7 @@ interface HistoryRowProps {
   item: HistoryItem;
   onPress: () => void;
   onDelete: () => void;
+  onRename: (title: string) => void;
 }
 
 interface DeleteActionProps {
@@ -45,18 +46,21 @@ function DeleteAction({ progress, onPress }: DeleteActionProps) {
   );
 }
 
-function HistoryRow({ item, onPress, onDelete }: HistoryRowProps) {
+function HistoryRow({ item, onPress, onDelete, onRename }: HistoryRowProps) {
   const a = item.analysis;
   const uniqueChords = Array.from(
     new Set(a.chords.map((c) => c.simplified.name))
   );
   const modeLabel = a.key.mode === "major" ? "mayor" : "menor";
+  const keyLabel = `${a.key.root} ${modeLabel}`;
+  const title = item.custom_title?.trim() || keyLabel;
+  const showSubtitle = Boolean(item.custom_title?.trim());
   const swipeRef = useRef<Swipeable>(null);
 
   const confirmDelete = useCallback(() => {
     Alert.alert(
       "Borrar análisis",
-      `¿Seguro que quieres borrar este análisis de ${a.key.root} ${modeLabel}?`,
+      `¿Seguro que quieres borrar este análisis de ${keyLabel}?`,
       [
         {
           text: "Cancelar",
@@ -66,7 +70,30 @@ function HistoryRow({ item, onPress, onDelete }: HistoryRowProps) {
         { text: "Borrar", style: "destructive", onPress: onDelete },
       ],
     );
-  }, [a.key.root, modeLabel, onDelete]);
+  }, [keyLabel, onDelete]);
+
+  const promptRename = useCallback(() => {
+    Alert.prompt(
+      "Renombrar análisis",
+      "Dale un nombre para encontrarlo más fácil (ej. Let It Be – verso).",
+      [
+        { text: "Cancelar", style: "cancel" },
+        {
+          text: "Borrar nombre",
+          style: "destructive",
+          onPress: () => onRename(""),
+        },
+        {
+          text: "Guardar",
+          onPress: (text?: string) => {
+            if (text != null) onRename(text);
+          },
+        },
+      ],
+      "plain-text",
+      item.custom_title ?? "",
+    );
+  }, [item.custom_title, onRename]);
 
   return (
     <Swipeable
@@ -79,15 +106,23 @@ function HistoryRow({ item, onPress, onDelete }: HistoryRowProps) {
     >
       <Pressable
         onPress={onPress}
+        onLongPress={promptRename}
+        delayLongPress={350}
         style={({ pressed }) => [rowStyles.row, pressed && rowStyles.pressed]}
         accessibilityRole="button"
+        accessibilityHint="Mantén presionado para renombrar"
       >
         <View style={rowStyles.topRow}>
-          <Text style={rowStyles.key}>
-            {a.key.root} {modeLabel}
+          <Text style={rowStyles.title} numberOfLines={1}>
+            {title}
           </Text>
           <Text style={rowStyles.meta}>{timeAgo(item.saved_at)}</Text>
         </View>
+        {showSubtitle && (
+          <Text style={rowStyles.subtitle} numberOfLines={1}>
+            {keyLabel}
+          </Text>
+        )}
         <Text style={rowStyles.chords} numberOfLines={1}>
           {uniqueChords.join("  ·  ")}
         </Text>
@@ -104,7 +139,7 @@ function HistoryRow({ item, onPress, onDelete }: HistoryRowProps) {
 export function HistoryListScreen() {
   const navigation =
     useNavigation<NativeStackNavigationProp<RootStackParamList>>();
-  const { items, refresh, remove } = useHistory();
+  const { items, refresh, remove, rename } = useHistory();
 
   useFocusEffect(
     useCallback(() => {
@@ -116,6 +151,11 @@ export function HistoryListScreen() {
     <SafeAreaView style={styles.safe} edges={["top", "left", "right"]}>
       <View style={styles.header}>
         <Text style={styles.title}>Historial</Text>
+        {items.length > 0 && (
+          <Text style={styles.hint}>
+            Mantén presionado un análisis para renombrarlo.
+          </Text>
+        )}
       </View>
 
       {items.length === 0 ? (
@@ -136,6 +176,7 @@ export function HistoryListScreen() {
                 navigation.navigate("Results", { analysis: item.analysis })
               }
               onDelete={() => void remove(item.id)}
+              onRename={(title) => void rename(item.id, title)}
             />
           )}
           contentContainerStyle={styles.list}
@@ -154,6 +195,11 @@ const styles = StyleSheet.create({
     paddingBottom: spacing.md,
   },
   title: { ...typography.h1, color: colors.text },
+  hint: {
+    ...typography.caption,
+    color: colors.textMuted,
+    marginTop: spacing.xs,
+  },
   list: { paddingHorizontal: spacing.lg, paddingBottom: spacing.xl },
   sep: { height: spacing.sm },
   empty: {
@@ -178,7 +224,14 @@ const rowStyles = StyleSheet.create({
   },
   pressed: { opacity: 0.7 },
   topRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "baseline" },
-  key: { ...typography.body, color: colors.text, fontWeight: "700" },
+  title: {
+    ...typography.body,
+    color: colors.text,
+    fontWeight: "700",
+    flexShrink: 1,
+    paddingRight: spacing.sm,
+  },
+  subtitle: { ...typography.caption, color: colors.textMuted, fontWeight: "600" },
   meta: { ...typography.caption, color: colors.textMuted },
   chords: { ...typography.body, color: colors.text },
   progression: { ...typography.caption, color: colors.primarySoft, fontWeight: "600" },

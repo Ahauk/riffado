@@ -4,6 +4,7 @@ import {
   HistoryItem,
   loadHistory,
   removeAnalysis,
+  renameAnalysis,
 } from "../storage";
 
 export function useHistory() {
@@ -29,5 +30,13 @@ export function useHistory() {
     [refresh]
   );
 
-  return { items, loading, refresh, remove };
+  const rename = useCallback(
+    async (id: string, title: string) => {
+      await renameAnalysis(id, title);
+      await refresh();
+    },
+    [refresh],
+  );
+
+  return { items, loading, refresh, remove, rename };
 }

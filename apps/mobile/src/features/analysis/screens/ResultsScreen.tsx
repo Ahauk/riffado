@@ -1,7 +1,7 @@
 import { useFocusEffect } from "@react-navigation/native";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { useCallback, useMemo, useState } from "react";
-import { FlatList, Pressable, StyleSheet, Text, View } from "react-native";
+import { Alert, FlatList, Pressable, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { HelpBottomSheet } from "../../../components/help/HelpBottomSheet";
@@ -10,12 +10,17 @@ import { HELP, HelpEntry } from "../../../components/help/helpContent";
 import { ChordDiagramSvg } from "../../chords/components/ChordDiagramSvg";
 import { ChordPickerSheet } from "../../chords/components/ChordPickerSheet";
 import { findShape } from "../../chords/data/chordShapes";
-import { getAnalysisById, updateAnalysisChord } from "../../history/storage";
+import {
+  getHistoryItemById,
+  renameAnalysis,
+  updateAnalysisChord,
+} from "../../history/storage";
 import { RootStackParamList } from "../../../navigation/types";
 import { AnalysisResult, ChordSegment } from "../../../types/api";
 import { BRAND_FONT, colors, radius, spacing, typography } from "../../../theme/tokens";
 import { suggestAlternatives } from "../../../utils/chordSuggestions";
 import { computeProgressionLabel, degreeOf } from "../../../utils/roman";
+import { AudioPlayerBar } from "../components/AudioPlayerBar";
 
 type Props = NativeStackScreenProps<RootStackParamList, "Results">;
 
@@ -146,22 +151,30 @@ export function ResultsScreen({ route, navigation }: Props) {
   const [tab, setTab] = useState<Tab>("chords");
   const [helpEntry, setHelpEntry] = useState<HelpEntry | null>(null);
   const [editingIdx, setEditingIdx] = useState<number | null>(null);
+  const [customTitle, setCustomTitle] = useState<string | undefined>();
+  const [audioUri, setAudioUri] = useState<string | undefined>();
 
   // When coming back from ChordDetail, re-read storage so corrections made
   // there show up here. The analysis is already persisted right after
-  // /v1/analyze so this should always find a match.
+  // /v1/analyze so this should always find a match. We also pull the
+  // custom_title and audio_uri from the same record.
   useFocusEffect(
     useCallback(() => {
       let alive = true;
-      void getAnalysisById(analysis.analysis_id).then((fresh) => {
-        if (alive && fresh) setAnalysis(fresh);
+      void getHistoryItemById(analysis.analysis_id).then((item) => {
+        if (!alive || !item) return;
+        setAnalysis(item.analysis);
+        setCustomTitle(item.custom_title);
+        setAudioUri(item.audio_uri);
       });
       return () => { alive = false; };
     }, [analysis.analysis_id]),
   );
 
   const modeLabel = analysis.key.mode === "major" ? "mayor" : "menor";
+  const keyLabel = `${analysis.key.root} ${modeLabel}`;
   const capo = analysis.suggested_capo.fret;
+  const headerTitle = customTitle?.trim() || "Progresión";
   // Recompute the progression fingerprint every render so user corrections
   // show up immediately and the pill stays in sync with the chord list.
   const progressionLabel = useMemo(
@@ -205,18 +218,57 @@ export function ResultsScreen({ route, navigation }: Props) {
     [analysis.analysis_id],
   );
 
+  const promptRename = useCallback(() => {
+    Alert.prompt(
+      "Renombrar análisis",
+      "Dale un nombre para encontrarlo más fácil (ej. Let It Be – verso).",
+      [
+        { text: "Cancelar", style: "cancel" },
+        {
+          text: "Borrar nombre",
+          style: "destructive",
+          onPress: async () => {
+            await renameAnalysis(analysis.analysis_id, "");
+            setCustomTitle(undefined);
+          },
+        },
+        {
+          text: "Guardar",
+          onPress: async (text?: string) => {
+            if (text == null) return;
+            await renameAnalysis(analysis.analysis_id, text);
+            setCustomTitle(text.trim() || undefined);
+          },
+        },
+      ],
+      "plain-text",
+      customTitle ?? "",
+    );
+  }, [analysis.analysis_id, customTitle]);
+
   return (
     <SafeAreaView style={styles.safe}>
       <View style={styles.header}>
         <View style={styles.titleRow}>
-          <Text style={styles.title}>Progresión</Text>
+          <Pressable
+            onPress={promptRename}
+            accessibilityRole="button"
+            accessibilityLabel="Renombrar análisis"
+            hitSlop={8}
+            style={styles.titlePress}
+          >
+            <Text style={styles.title} numberOfLines={1}>
+              {headerTitle}
+            </Text>
+            <Text style={styles.editGlyph}>✎</Text>
+          </Pressable>
           <Pressable
             onPress={() => setHelpEntry(HELP.tonality)}
             accessibilityRole="button"
             style={styles.titleRomanPress}
           >
             <Text style={styles.titleRoman} numberOfLines={1}>
-              {analysis.key.root} {modeLabel}
+              {keyLabel}
             </Text>
           </Pressable>
         </View>
@@ -226,9 +278,7 @@ export function ResultsScreen({ route, navigation }: Props) {
             style={styles.metaPill}
             accessibilityRole="button"
           >
-            <Text style={styles.metaPillLabel}>
-              {analysis.key.root} {modeLabel}
-            </Text>
+            <Text style={styles.metaPillLabel}>{keyLabel}</Text>
           </Pressable>
           {progressionLabel.length > 0 && (
             <Pressable
@@ -251,6 +301,11 @@ export function ResultsScreen({ route, navigation }: Props) {
             accessibilityLabel="Qué es un capo"
           />
         </View>
+        {audioUri && (
+          <View style={styles.playerWrap}>
+            <AudioPlayerBar uri={audioUri} />
+          </View>
+        )}
       </View>
 
       <View style={styles.tabs}>
@@ -368,8 +423,15 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     gap: spacing.md,
   },
-  title: { ...typography.h1, color: colors.text },
-  titleRomanPress: { flexShrink: 1 },
+  titlePress: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.xs,
+    flexShrink: 1,
+  },
+  title: { ...typography.h1, color: colors.text, flexShrink: 1 },
+  editGlyph: { color: colors.textMuted, fontSize: 18 },
+  titleRomanPress: { flexShrink: 0 },
   titleRoman: {
     fontSize: 20,
     fontWeight: "700",
@@ -377,7 +439,13 @@ const styles = StyleSheet.create({
     letterSpacing: 0.5,
     marginBottom: 6,
   },
-  metaRow: { flexDirection: "row", gap: spacing.sm, marginTop: spacing.xs },
+  metaRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: spacing.sm,
+    alignItems: "center",
+    marginTop: spacing.xs,
+  },
   metaPill: {
     flexDirection: "row",
     alignItems: "center",
@@ -401,6 +469,7 @@ const styles = StyleSheet.create({
     lineHeight: 18,
     flex: 1,
   },
+  playerWrap: { marginTop: spacing.sm },
 
   tabs: {
     flexDirection: "row",
