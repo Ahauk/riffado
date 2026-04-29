@@ -46,6 +46,30 @@
   Hay falsos positivos moderados (ej. Bm7 donde era Bm) pero
   musicalmente las notas son similares (Bm7 = Bm + 7ma neutra).
   Tuning pendiente basado en pruebas reales con el iPhone de Victor.
+- ✅ **Renombrar análisis del historial.** Long-press en una card
+  abre `Alert.prompt`; ✏️ junto al título en Results hace lo mismo.
+  Vacío revierte al label autogenerado (`G mayor`). Hint sutil bajo
+  el título "Historial" para que el long-press sea descubrible. Trim
+  + cap a 60 chars.
+- ✅ **Audio del análisis persistido + reproductor en Results.**
+  El audio (recording o upload) se copia al `documentDirectory`
+  con el `analysis_id` como nombre estable. `AudioPlayerBar` con
+  play/pause SVG (no glyph Unicode → en iOS salía como emoji con
+  fondo gris), scrub bar arrastrable (`@react-native-community/slider`)
+  y mm:ss / mm:ss usando `expo-audio` `useAudioPlayer`. Cleanup en
+  delete y al podar oldest items. `saveAnalysis` corre con `await`
+  antes de navegar a Results para evitar race con el focus effect.
+- ✅ **Compartir progresión como imagen.** Botón "Compartir" debajo
+  de las pills en Results captura un PNG 4:5 (ideal para IG/WhatsApp)
+  con wordmark RIFFADO neon, key/BPM/capo pills, huella armónica y
+  hasta 8 diagramas únicos en grilla 4-col (`+N más` cuando hay
+  más). `react-native-view-shot` + `expo-sharing`.
+- ✅ **Pentagrama animado en AnalyzingScreen.** Reemplaza la bola
+  morada con SVG: 5 líneas + clave de sol morada + 5 cabezas de nota
+  que se desplazan derecha→izquierda en loop con stagger, cada una
+  rotada sobre su propio centro adentro de un `AnimatedG` para que
+  no se desvíen del pentagrama. Copy: "Rifando tu rola" → "Analizando
+  tu rola / para que te **Riffes**" (Riffes en morado brand).
 
 ## Corto plazo (próximas 1–2 sesiones)
 
@@ -54,27 +78,15 @@
   salen 7mas falsas, (2) canción con 7ma real (bolero/bossa/Beatles)
   para confirmar detección, (3) clips previos para regresión.
   Si faltan 7mas reales → subir a 0.90. Si sobran falsas → bajar a 0.85.
-- **Arpegios / fingerpicking** (Opción B de la sesión pasada).
-  Ventanas de análisis más largas (~2-3s vs 1s actual) o pesar el
-  bajo (suele cantar la raíz) podrían mitigar la baja confianza que
-  hoy da arpegio puro. Chordino ya en mediano plazo es la solución
-  definitiva.
-- **UX pequeño y rápido** (Opción C de la sesión pasada):
-  - **Renombrar análisis** en historial (~30 min).
-  - **Compartir progresión** como imagen (~1-2 h).
-  - **Loop/playback del fragmento** con highlight del acorde actual
-    (~2 h — requiere expo-audio playback + timeline sync).
-- **Guardar el audio de cada análisis** (en el historial, junto al JSON).
-  Hoy solo guardamos la progresión; si el user quiere oír de nuevo el
-  fragmento para comparar, no puede.
-- **Renombrar análisis** del historial (ej. "Let It Be – verso").
-- **Compartir progresión** como imagen (render de la lista + diagramas
-  para pegar en WhatsApp, Instagram, etc.).
-- **Fingerpicking / arpegios**: actualmente el detector funciona con
+- **Highlight del acorde activo durante playback** — el reproductor
+  ya está; falta sincronizar `currentTime` del player con el chord
+  cuyo `[start_sec, end_sec]` lo contiene, y resaltar esa fila en la
+  lista (scroll-into-view + tinte morado). ~1-2 h.
+- **Arpegios / fingerpicking**: actualmente el detector funciona con
   arpegios pero con menos confianza (más badges "revísalo"). Ventanas
-  de análisis más largas o pesos más altos en notas bajas (bassline
-  suele cantar la raíz del acorde) podrían mitigar. Chordino en
-  mediano plazo resuelve de base.
+  de análisis más largas (~2-3s vs 1s actual) o pesos más altos en
+  notas bajas (bassline suele cantar la raíz) podrían mitigar.
+  Chordino en mediano plazo resuelve de base.
 
 ## Mediano plazo
 
