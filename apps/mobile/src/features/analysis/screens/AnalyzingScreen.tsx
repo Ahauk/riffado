@@ -7,6 +7,7 @@ import { RootStackParamList } from "../../../navigation/types";
 import { saveAnalysis } from "../../history/storage";
 import { uploadAndAnalyze } from "../../../services/api/analyses";
 import { BRAND_FONT, colors, radius, spacing, typography } from "../../../theme/tokens";
+import { MusicalStaffAnimation } from "../components/MusicalStaffAnimation";
 
 type Props = NativeStackScreenProps<RootStackParamList, "Analyzing">;
 
@@ -217,20 +218,23 @@ export function AnalyzingScreen({ navigation, route }: Props) {
   return (
     <SafeAreaView style={styles.safe}>
       <View style={styles.container}>
-        <View style={styles.spinnerWrap}>
+        <View style={styles.staffWrap}>
           <Animated.View
             style={[
-              styles.ring,
+              styles.staffBloom,
               {
                 opacity: ringOpacity,
                 transform: [{ scale: ringScale }],
               },
             ]}
           />
-          <View style={styles.ringCore} />
+          <MusicalStaffAnimation />
         </View>
 
-        <Text style={styles.title}>Rifando tu rola</Text>
+        <Text style={styles.title}>Analizando tu rola</Text>
+        <Text style={styles.titleSub}>
+          para que te <Text style={styles.titleBrand}>Riffes</Text>
+        </Text>
         <Text style={styles.phase}>{PHASES[phaseIdx]}</Text>
 
         <View style={styles.progressTrack}>
@@ -245,7 +249,8 @@ export function AnalyzingScreen({ navigation, route }: Props) {
   );
 }
 
-const RING_SIZE = 120;
+const STAFF_BLOOM_W = 280;
+const STAFF_BLOOM_H = 140;
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.bg },
@@ -256,29 +261,20 @@ const styles = StyleSheet.create({
     gap: spacing.md,
     paddingHorizontal: spacing.lg,
   },
-  spinnerWrap: {
-    width: RING_SIZE,
-    height: RING_SIZE,
+  staffWrap: {
+    width: STAFF_BLOOM_W,
+    height: STAFF_BLOOM_H,
     alignItems: "center",
     justifyContent: "center",
     marginBottom: spacing.md,
   },
-  ring: {
+  staffBloom: {
     position: "absolute",
-    width: RING_SIZE,
-    height: RING_SIZE,
-    borderRadius: RING_SIZE / 2,
+    width: STAFF_BLOOM_W,
+    height: STAFF_BLOOM_H,
+    borderRadius: STAFF_BLOOM_H / 2,
     backgroundColor: colors.primary,
-  },
-  ringCore: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: colors.primary,
-    shadowColor: colors.primary,
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.9,
-    shadowRadius: 28,
+    opacity: 0.18,
   },
   title: {
     fontFamily: BRAND_FONT,
@@ -286,6 +282,22 @@ const styles = StyleSheet.create({
     color: colors.text,
     letterSpacing: 2,
     marginTop: spacing.sm,
+  },
+  titleSub: {
+    fontFamily: BRAND_FONT,
+    fontSize: 20,
+    color: colors.textMuted,
+    letterSpacing: 1,
+    marginTop: -spacing.xs,
+  },
+  titleBrand: {
+    fontFamily: BRAND_FONT,
+    fontSize: 20,
+    color: colors.primary,
+    letterSpacing: 1,
+    textShadowColor: colors.primary,
+    textShadowOffset: { width: 0, height: 0 },
+    textShadowRadius: 8,
   },
   phase: {
     ...typography.body,
