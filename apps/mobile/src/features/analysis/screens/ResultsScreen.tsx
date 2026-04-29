@@ -1,8 +1,10 @@
 import { useFocusEffect } from "@react-navigation/native";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
-import { useCallback, useMemo, useState } from "react";
+import * as Sharing from "expo-sharing";
+import { useCallback, useMemo, useRef, useState } from "react";
 import { Alert, FlatList, Pressable, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { captureRef } from "react-native-view-shot";
 
 import { HelpBottomSheet } from "../../../components/help/HelpBottomSheet";
 import { InfoDot } from "../../../components/help/InfoDot";
@@ -21,6 +23,7 @@ import { BRAND_FONT, colors, radius, spacing, typography } from "../../../theme/
 import { suggestAlternatives } from "../../../utils/chordSuggestions";
 import { computeProgressionLabel, degreeOf } from "../../../utils/roman";
 import { AudioPlayerBar } from "../components/AudioPlayerBar";
+import { ShareableCard } from "../components/ShareableCard";
 
 type Props = NativeStackScreenProps<RootStackParamList, "Results">;
 
@@ -153,6 +156,8 @@ export function ResultsScreen({ route, navigation }: Props) {
   const [editingIdx, setEditingIdx] = useState<number | null>(null);
   const [customTitle, setCustomTitle] = useState<string | undefined>();
   const [audioUri, setAudioUri] = useState<string | undefined>();
+  const [sharing, setSharing] = useState(false);
+  const shareRef = useRef<View>(null);
 
   // When coming back from ChordDetail, re-read storage so corrections made
   // there show up here. The analysis is already persisted right after
@@ -246,6 +251,34 @@ export function ResultsScreen({ route, navigation }: Props) {
     );
   }, [analysis.analysis_id, customTitle]);
 
+  const handleShare = useCallback(async () => {
+    if (sharing) return;
+    setSharing(true);
+    try {
+      // Wait one frame so the off-screen ShareableCard is mounted before capture.
+      await new Promise((r) => requestAnimationFrame(() => r(null)));
+      const available = await Sharing.isAvailableAsync();
+      if (!available) {
+        Alert.alert("Compartir no disponible", "Tu dispositivo no soporta compartir desde la app.");
+        return;
+      }
+      const uri = await captureRef(shareRef, {
+        format: "png",
+        quality: 1,
+        result: "tmpfile",
+      });
+      await Sharing.shareAsync(uri, {
+        mimeType: "image/png",
+        dialogTitle: "Compartir tu rola",
+      });
+    } catch (e) {
+      console.warn("share failed", e);
+      Alert.alert("No pudimos compartir", "Intenta de nuevo en un momento.");
+    } finally {
+      setSharing(false);
+    }
+  }, [sharing]);
+
   return (
     <SafeAreaView style={styles.safe}>
       <View style={styles.header}>
@@ -289,6 +322,19 @@ export function ResultsScreen({ route, navigation }: Props) {
               <Text style={styles.metaPillLabel}>{progressionLabel}</Text>
             </Pressable>
           )}
+        </View>
+        <View style={styles.shareRow}>
+          <Pressable
+            onPress={handleShare}
+            disabled={sharing}
+            accessibilityRole="button"
+            accessibilityLabel="Compartir progresión como imagen"
+            style={[styles.shareBtn, sharing && styles.shareBtnDisabled]}
+            hitSlop={6}
+          >
+            <Text style={styles.shareGlyph}>↗</Text>
+            <Text style={styles.shareLabel}>{sharing ? "..." : "Compartir"}</Text>
+          </Pressable>
         </View>
         <View style={styles.capoRow}>
           <Text style={styles.capoLine}>
@@ -410,6 +456,18 @@ export function ResultsScreen({ route, navigation }: Props) {
         }}
         onClose={() => setEditingIdx(null)}
       />
+
+      {/* Off-screen card used by react-native-view-shot to capture the
+          shareable PNG. Lives behind the rest of the screen and never
+          receives touches. */}
+      <View pointerEvents="none" style={styles.shareStage}>
+        <ShareableCard
+          ref={shareRef}
+          analysis={analysis}
+          progressionLabel={progressionLabel}
+          customTitle={customTitle}
+        />
+      </View>
     </SafeAreaView>
   );
 }
@@ -457,6 +515,24 @@ const styles = StyleSheet.create({
     borderColor: colors.primaryTintBorder,
   },
   metaPillLabel: { ...typography.caption, color: colors.primarySoft, fontWeight: "700" },
+  shareRow: {
+    flexDirection: "row",
+    marginTop: spacing.sm,
+  },
+  shareBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.xs,
+    borderRadius: radius.pill,
+    backgroundColor: colors.surfaceAlt,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  shareBtnDisabled: { opacity: 0.5 },
+  shareGlyph: { color: colors.text, fontSize: 14, fontWeight: "700" },
+  shareLabel: { ...typography.caption, color: colors.text, fontWeight: "700" },
   capoRow: {
     flexDirection: "row",
     alignItems: "center",
@@ -529,6 +605,13 @@ const styles = StyleSheet.create({
     fontSize: 24,
     color: colors.text,
     letterSpacing: 1.5,
+  },
+
+  shareStage: {
+    position: "absolute",
+    left: -2000,
+    top: 0,
+    opacity: 0,
   },
 });
 
