@@ -11,10 +11,10 @@ import { NoteReading, readingFromFrequency } from "../utils/noteMapping";
 // real-time.
 const SAMPLE_RATE = 16000;
 const CHUNK_INTERVAL_MS = 100;
-// EMA_ALPHA at 0.4 was sluggish — when YIN momentarily latched onto a
-// harmonic, the smoothed value stayed wrong for ~10 frames. 0.75 settles
-// in 2-3 frames while still suppressing single-frame jitter.
-const EMA_ALPHA = 0.75;
+// 0.85 makes the smoother track small fine-tuning movements almost
+// immediately while still rejecting single-frame jitter. Below this the
+// needle felt "frozen" when the user nudged the peg by a few cents.
+const EMA_ALPHA = 0.85;
 // Loose-ish YIN threshold + low MIN_CONFIDENCE so high strings (B3, E4),
 // which have softer attacks, still register. Outlier rejection below
 // keeps wild jumps (typically octave errors) from polluting the EMA.

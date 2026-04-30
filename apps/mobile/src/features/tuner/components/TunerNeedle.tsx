@@ -93,9 +93,13 @@ export function TunerNeedle({ cents, quality, active }: TunerNeedleProps) {
   const angle = useRef(new Animated.Value(centsToAngle(cents))).current;
 
   useEffect(() => {
-    Animated.timing(angle, {
+    // Spring rather than timing — gives the needle a tiny natural overshoot
+    // and settle, which reads as "alive" instead of "stiff". Tension/friction
+    // tuned to be responsive (settles in ~250ms) without bouncing visibly.
+    Animated.spring(angle, {
       toValue: centsToAngle(cents),
-      duration: 90,
+      tension: 80,
+      friction: 9,
       useNativeDriver: true,
     }).start();
   }, [cents, angle]);
