@@ -3,7 +3,17 @@ import { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { useAudioPlayer, useAudioPlayerStatus } from "expo-audio";
 import * as Sharing from "expo-sharing";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Alert, FlatList, Pressable, StyleSheet, Text, View } from "react-native";
+import {
+  Alert,
+  FlatList,
+  KeyboardAvoidingView,
+  Platform,
+  Pressable,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { captureRef } from "react-native-view-shot";
 
@@ -16,6 +26,7 @@ import { findShape } from "../../chords/data/chordShapes";
 import {
   getHistoryItemById,
   renameAnalysis,
+  setLyrics,
   updateAnalysisChord,
 } from "../../history/storage";
 import { RootStackParamList } from "../../../navigation/types";
@@ -165,6 +176,7 @@ export function ResultsScreen({ route, navigation }: Props) {
   const [editingIdx, setEditingIdx] = useState<number | null>(null);
   const [customTitle, setCustomTitle] = useState<string | undefined>();
   const [audioUri, setAudioUri] = useState<string | undefined>();
+  const [lyrics, setLyricsState] = useState<string>("");
   const [sharing, setSharing] = useState(false);
   const shareRef = useRef<View>(null);
   const listRef = useRef<FlatList<ChordSegment>>(null);
@@ -187,6 +199,7 @@ export function ResultsScreen({ route, navigation }: Props) {
         setAnalysis(item.analysis);
         setCustomTitle(item.custom_title);
         setAudioUri(item.audio_uri);
+        setLyricsState(item.lyrics ?? "");
       });
       return () => { alive = false; };
     }, [analysis.analysis_id]),
@@ -297,6 +310,10 @@ export function ResultsScreen({ route, navigation }: Props) {
       customTitle ?? "",
     );
   }, [analysis.analysis_id, customTitle]);
+
+  const handleLyricsBlur = useCallback(() => {
+    void setLyrics(analysis.analysis_id, lyrics);
+  }, [analysis.analysis_id, lyrics]);
 
   const handleShare = useCallback(async () => {
     if (sharing) return;
@@ -457,13 +474,24 @@ export function ResultsScreen({ route, navigation }: Props) {
           }}
         />
       ) : (
-        <View style={styles.emptyLyrics}>
-          <Text style={styles.emptyTitle}>Letra — próximamente</Text>
-          <Text style={styles.emptyHint}>
-            Todavía no mostramos letras. Pronto podrás pegarlas para seguir la
-            canción mientras tocas.
-          </Text>
-        </View>
+        <KeyboardAvoidingView
+          style={styles.lyricsWrap}
+          behavior={Platform.OS === "ios" ? "padding" : undefined}
+          keyboardVerticalOffset={Platform.OS === "ios" ? 80 : 0}
+        >
+          <TextInput
+            value={lyrics}
+            onChangeText={setLyricsState}
+            onBlur={handleLyricsBlur}
+            multiline
+            scrollEnabled
+            textAlignVertical="top"
+            placeholder="Pega aquí la letra de tu rola para tenerla a la mano mientras tocas…"
+            placeholderTextColor={colors.textMuted}
+            style={styles.lyricsInput}
+            accessibilityLabel="Letra de la canción"
+          />
+        </KeyboardAvoidingView>
       )}
 
       {tab === "chords" && (
@@ -628,18 +656,18 @@ const styles = StyleSheet.create({
   list: { paddingHorizontal: spacing.lg, paddingTop: spacing.sm, paddingBottom: spacing.xl },
   sep: { height: 1, backgroundColor: colors.border },
 
-  emptyLyrics: {
+  lyricsWrap: {
     flex: 1,
-    padding: spacing.lg,
-    alignItems: "center",
-    justifyContent: "center",
-    gap: spacing.sm,
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.md,
+    paddingBottom: spacing.sm,
   },
-  emptyTitle: { ...typography.h2, color: colors.text },
-  emptyHint: {
+  lyricsInput: {
+    flex: 1,
     ...typography.body,
-    color: colors.textMuted,
-    textAlign: "center",
+    color: colors.text,
+    lineHeight: 24,
+    textAlignVertical: "top",
   },
 
   footerHintRow: {

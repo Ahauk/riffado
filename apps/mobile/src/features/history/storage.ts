@@ -11,6 +11,8 @@ export interface HistoryItem {
   custom_title?: string;
   /** Persistent file:// URI for the analyzed audio, when we still have it. */
   audio_uri?: string;
+  /** User-pasted lyrics, kept verbatim with line breaks. */
+  lyrics?: string;
 }
 
 const KEY = "@riffado:history";
@@ -111,6 +113,27 @@ export async function renameAnalysis(
     ...(trimmed ? { custom_title: trimmed } : {}),
   };
   if (!trimmed) delete nextItem.custom_title;
+  const next = [...current];
+  next[idx] = nextItem;
+  await AsyncStorage.setItem(KEY, JSON.stringify(next));
+}
+
+/**
+ * Save the user's pasted lyrics for an analysis. Pass an empty/whitespace
+ * string to clear them. No-op if the analysis isn't in history.
+ */
+export async function setLyrics(
+  analysisId: string,
+  rawLyrics: string,
+): Promise<void> {
+  const trimmed = rawLyrics.trim();
+  const current = await loadHistory();
+  const idx = current.findIndex((h) => h.id === analysisId);
+  if (idx < 0) return;
+  const item = current[idx];
+  const nextItem: HistoryItem = { ...item };
+  if (trimmed) nextItem.lyrics = trimmed;
+  else delete nextItem.lyrics;
   const next = [...current];
   next[idx] = nextItem;
   await AsyncStorage.setItem(KEY, JSON.stringify(next));
