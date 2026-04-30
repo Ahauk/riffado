@@ -141,6 +141,28 @@
 - **Strumming pattern** sugerido — detectar ritmo con onset detection y
   sugerir pattern (ej. "D DU UDU" para baladas pop).
 - **Metrónomo** para practicar con el fragmento loopeado.
+- **Modo "Aprende" — círculo de quintas interactivo.** Pestaña dedicada
+  (probable cuarta tab del bottom bar) inspirada en un reel de UrBoi
+  Muzic. Pieza 1: SVG del círculo de quintas con las 12 notas
+  equidistantes y un dot que viaja a las notas que componen un acorde
+  seleccionado, dibujando los polígonos clásicos (triángulos para
+  triada, tetragramas para 7mas, etc.). Pieza 2: síntesis de audio en
+  vivo para tocar cada nota y luego el acorde junto. Pieza 3: librería
+  pura de fórmulas de acordes (mayor = 1-3-5, menor = 1-b3-5,
+  dominante 7 = 1-3-5-b7, maj7, m7, sus2, sus4, dim, aug, 9, etc.).
+  Decisión clave de implementación: samples pre-grabados (~2.5 MB para
+  12 notas, suena a guitarra real, asset cost) vs síntesis con
+  oscilador (suena a "synth", asset zero). Probable empezar con
+  oscilador para validar UX, después subir a samples si el feature pega.
+  Scope ~1-2 sesiones cuando lleguemos a la pestaña Aprende.
+- **Notación latina (Do/Re/Mi) opcional en Settings** — toggle para
+  cambiar de notación anglosajona (C/D/E) a latina. Afecta nombres de
+  acordes en Results, Historial, Glosario, y el círculo de quintas
+  cuando exista. La data interna se queda en MIDI/inglés; solo el
+  display cambia. Mapeo: C→Do, C#→Do#, D→Re, D#→Re#, E→Mi, F→Fa,
+  F#→Fa#, G→Sol, G#→Sol#, A→La, A#→La#, B→Si. Default es-MX:
+  preferimos anglosajona (es el estándar de tablaturas y partituras
+  pop/rock que el usuario ve en internet).
 - **Settings más completo**:
   - Toggle "mostrar grados armónicos" (default on).
   - Toggle "sugerir capo automáticamente" (default on).
