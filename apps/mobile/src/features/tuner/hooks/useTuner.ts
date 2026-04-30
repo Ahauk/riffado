@@ -28,14 +28,6 @@ export interface TunerState {
   reading: NoteReading | null;
   /** Confidence of the most recent YIN result (0..1). */
   confidence: number;
-  /** Diagnostic snapshot from the last chunk so the screen can surface it. */
-  debug: {
-    chunkSize: number;
-    rawFreq: number | null;
-    maxAmplitude: number;
-    chunksSeen: number;
-    lastChunkAgoMs: number;
-  };
   start: () => Promise<void>;
   stop: () => Promise<void>;
 }
@@ -69,43 +61,12 @@ export function useTuner(): TunerState {
   statusRef.current = status;
 
   const smoothedFreqRef = useRef<number | null>(null);
-  const chunksSeenRef = useRef(0);
-  const lastChunkAtRef = useRef(0);
-  const [debug, setDebug] = useState<TunerState["debug"]>({
-    chunkSize: 0,
-    rawFreq: null,
-    maxAmplitude: 0,
-    chunksSeen: 0,
-    lastChunkAgoMs: 0,
-  });
 
   const handleChunk = useCallback(async (samples: Float32Array) => {
     if (samples.length < 32) return;
-    const now = Date.now();
-    chunksSeenRef.current += 1;
-    const sinceLast = lastChunkAtRef.current === 0 ? 0 : now - lastChunkAtRef.current;
-    lastChunkAtRef.current = now;
-
-    let max = 0;
-    for (let i = 0; i < samples.length; i++) {
-      const a = Math.abs(samples[i]);
-      if (a > max) max = a;
-    }
 
     const result = detectPitchYin(samples, { sampleRate: SAMPLE_RATE });
     setConfidence(result.confidence);
-
-    // Surface raw diagnostics every ~500ms so the screen can show whether
-    // chunks are arriving at all and what YIN is producing.
-    if (chunksSeenRef.current % 5 === 0) {
-      setDebug({
-        chunkSize: samples.length,
-        rawFreq: result.freq,
-        maxAmplitude: max,
-        chunksSeen: chunksSeenRef.current,
-        lastChunkAgoMs: sinceLast,
-      });
-    }
 
     if (result.freq == null || result.confidence < MIN_CONFIDENCE) {
       // Don't override the last good reading — keeps the UI stable while the
@@ -193,5 +154,5 @@ export function useTuner(): TunerState {
     };
   }, []);
 
-  return { status, reading, confidence, debug, start, stop };
+  return { status, reading, confidence, start, stop };
 }

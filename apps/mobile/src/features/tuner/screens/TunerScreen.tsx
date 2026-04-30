@@ -8,8 +8,16 @@ import { TunerNeedle } from "../components/TunerNeedle";
 import { useTuner } from "../hooks/useTuner";
 import { tuningQuality } from "../utils/noteMapping";
 
+/** Friendly hint based on how far off the user is. */
+function tuningHint(cents: number): { text: string; tone: "ok" | "off" } | null {
+  if (cents > 5) return { text: "Aflójale tantito", tone: "off" };
+  if (cents < -5) return { text: "Apriétale tantito", tone: "off" };
+  if (Math.abs(cents) <= 5) return { text: "¡Ya quedó!", tone: "ok" };
+  return null;
+}
+
 export function TunerScreen() {
-  const { status, reading, confidence, debug, start, stop } = useTuner();
+  const { status, reading, confidence, start, stop } = useTuner();
 
   // Auto-start when the tab becomes focused, auto-stop when it loses focus.
   // The user shouldn't have to tap a button to begin tuning — opening the
@@ -29,6 +37,7 @@ export function TunerScreen() {
     [reading],
   );
   const isActive = status === "listening" && reading != null;
+  const hint = reading && isActive ? tuningHint(reading.cents) : null;
 
   return (
     <SafeAreaView style={styles.safe} edges={["top", "left", "right"]}>
@@ -61,6 +70,22 @@ export function TunerScreen() {
           {reading?.suggestedString && (
             <Text style={styles.stringHint}>
               cuerda {reading.suggestedString}
+            </Text>
+          )}
+          {hint && (
+            <Text
+              style={[
+                styles.tuningHint,
+                hint.tone === "ok" && styles.tuningHintOk,
+              ]}
+            >
+              {hint.text}
+            </Text>
+          )}
+          {reading && (
+            <Text style={styles.freqLine}>
+              actual {reading.inputFreq.toFixed(1)} Hz · meta{" "}
+              {reading.targetFreq.toFixed(1)} Hz
             </Text>
           )}
         </View>
@@ -99,13 +124,6 @@ export function TunerScreen() {
               ? "Preparando micrófono..."
               : ""}
         </Text>
-        {/* Diagnostic strip — visible debug since console.logs aren't reaching
-            Metro. Remove once the tuner is dialled in. */}
-        {status === "listening" && (
-          <Text style={styles.debugHint}>
-            chunks {debug.chunksSeen} · size {debug.chunkSize} · last {debug.lastChunkAgoMs}ms · max {debug.maxAmplitude.toFixed(3)} · raw {debug.rawFreq?.toFixed(1) ?? "—"} Hz
-          </Text>
-        )}
       </View>
     </SafeAreaView>
   );
@@ -152,6 +170,19 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     marginTop: spacing.xs,
   },
+  tuningHint: {
+    ...typography.body,
+    color: colors.textMuted,
+    fontWeight: "600",
+    marginTop: spacing.xs,
+  },
+  tuningHintOk: { color: colors.success },
+  freqLine: {
+    ...typography.caption,
+    color: colors.textMuted,
+    fontVariant: ["tabular-nums"],
+    marginTop: spacing.xs,
+  },
   errorCard: {
     marginTop: spacing.lg,
     padding: spacing.md,
@@ -189,12 +220,5 @@ const styles = StyleSheet.create({
     textAlign: "center",
     fontVariant: ["tabular-nums"],
     minHeight: 18,
-  },
-  debugHint: {
-    fontSize: 10,
-    color: colors.textMuted,
-    textAlign: "center",
-    fontVariant: ["tabular-nums"],
-    opacity: 0.6,
   },
 });

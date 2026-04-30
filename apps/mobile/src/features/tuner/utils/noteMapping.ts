@@ -38,6 +38,10 @@ export interface NoteReading {
   label: string;
   /** "6ª", "5ª"... if `f` is close to a standard guitar string in EADGBE. */
   suggestedString: string | null;
+  /** The frequency the user is currently producing (Hz, smoothed). */
+  inputFreq: number;
+  /** Equal-tempered target frequency for the closest note (Hz). */
+  targetFreq: number;
 }
 
 /** Standard guitar tuning (EADGBE) low → high, with each string's MIDI. */
@@ -72,6 +76,11 @@ function midiToOctave(midi: number): number {
   return Math.floor(midi / 12) - 1;
 }
 
+/** MIDI note → equal-tempered frequency in Hz. Inverse of frequencyToMidi. */
+function midiToFrequency(midi: number): number {
+  return A4_HZ * Math.pow(2, (midi - A4_MIDI) / 12);
+}
+
 export function readingFromFrequency(freqHz: number): NoteReading | null {
   if (freqHz <= 0 || !Number.isFinite(freqHz)) return null;
   const midiFloat = frequencyToMidi(freqHz);
@@ -80,6 +89,7 @@ export function readingFromFrequency(freqHz: number): NoteReading | null {
   const note = midiToPitchClass(midi);
   const octave = midiToOctave(midi);
   const label = `${note}${octave}`;
+  const targetFreq = midiToFrequency(midi);
 
   // Suggest the closest standard guitar string when within ±2 semitones.
   // We use MIDI distance, not cents, so a slightly de-tuned string still maps.
@@ -94,7 +104,16 @@ export function readingFromFrequency(freqHz: number): NoteReading | null {
   }
   if (bestDiff > 2) suggestedString = null;
 
-  return { note, octave, cents, midi, label, suggestedString };
+  return {
+    note,
+    octave,
+    cents,
+    midi,
+    label,
+    suggestedString,
+    inputFreq: freqHz,
+    targetFreq,
+  };
 }
 
 /** Buckets used to colour the centre indicator. */
