@@ -27,6 +27,13 @@ export interface TunerState {
  * interval; we run YIN on each chunk and feed an EMA-smoothed frequency into
  * the note mapper. Results below MIN_CONFIDENCE are ignored — they're almost
  * always silence/noise/transient and would just make the needle jitter.
+ *
+ * `start` and `stop` are stable across renders by design — they only depend
+ * on refs, not on `status` or the recorder object. This is critical because
+ * `TunerScreen` feeds them into `useFocusEffect`'s dep array; if they
+ * changed every time `setStatus` ran the focus effect would re-execute and
+ * call `stop()` again, which would `setStatus("idle")` and trigger an
+ * infinite update loop.
  */
 export function useTuner(): TunerState {
   const recorder = useAudioRecorder();
@@ -34,13 +41,14 @@ export function useTuner(): TunerState {
   const [reading, setReading] = useState<NoteReading | null>(null);
   const [confidence, setConfidence] = useState(0);
 
-  // Smoothed frequency state lives in a ref so the audio callback can read
-  // and update it without forcing re-renders.
-  const smoothedFreqRef = useRef<number | null>(null);
+  // Mirror render-time values into refs so the stable callbacks below can
+  // read the latest value without taking them as deps.
+  const recorderRef = useRef(recorder);
+  recorderRef.current = recorder;
+  const statusRef = useRef<TunerStatus>("idle");
+  statusRef.current = status;
 
-  // Reset smoothing whenever we (re)start recording so a stale frequency
-  // from a previous session doesn't leak into the first chunk.
-  const startedAtRef = useRef(0);
+  const smoothedFreqRef = useRef<number | null>(null);
 
   const handleChunk = useCallback(async (samples: Float32Array) => {
     if (samples.length < 32) return;
@@ -59,14 +67,14 @@ export function useTuner(): TunerState {
   }, []);
 
   const start = useCallback(async () => {
-    if (status === "starting" || status === "listening") return;
+    const current = statusRef.current;
+    if (current === "starting" || current === "listening") return;
     setStatus("starting");
     smoothedFreqRef.current = null;
     setReading(null);
     setConfidence(0);
-    startedAtRef.current = Date.now();
     try {
-      await recorder.startRecording({
+      await recorderRef.current.startRecording({
         sampleRate: SAMPLE_RATE,
         channels: 1,
         encoding: "pcm_32bit",
@@ -91,15 +99,16 @@ export function useTuner(): TunerState {
           : "error",
       );
     }
-  }, [recorder, status, handleChunk]);
+  }, [handleChunk]);
 
   const stop = useCallback(async () => {
-    if (!recorder.isRecording) {
-      setStatus("idle");
+    if (!recorderRef.current.isRecording) {
+      // No-op when nothing is recording. Crucially we do NOT setStatus here —
+      // doing so on every focus cleanup would re-trigger renders and a loop.
       return;
     }
     try {
-      await recorder.stopRecording();
+      await recorderRef.current.stopRecording();
     } catch (e) {
       console.warn("[useTuner] stopRecording failed", e);
     }
@@ -107,20 +116,16 @@ export function useTuner(): TunerState {
     setReading(null);
     setConfidence(0);
     setStatus("idle");
-  }, [recorder]);
+  }, []);
 
   // Stop on unmount so the mic stream doesn't keep running after navigating
   // away from the screen.
   useEffect(() => {
     return () => {
-      if (recorder.isRecording) {
-        void recorder.stopRecording().catch(() => {});
+      if (recorderRef.current.isRecording) {
+        void recorderRef.current.stopRecording().catch(() => {});
       }
     };
-    // We deliberately depend only on the stable recorder reference. The
-    // exhaustive-deps lint rule would suggest including stop, but stop is
-    // recreated on every state change and we'd then have a teardown loop.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   return { status, reading, confidence, start, stop };
