@@ -5,6 +5,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { BRAND_FONT, colors, radius, spacing, typography } from "../../../theme/tokens";
 import { displayChord, toLatinRoot } from "../../../utils/notation";
 import { useNotation } from "../../settings/NotationContext";
+import { useChordPlayer } from "../audio/useChordPlayer";
 import { CircleOfFifthsSvg } from "../components/CircleOfFifthsSvg";
 import {
   CHORD_FORMULAS,
@@ -16,9 +17,18 @@ export function LearnScreen() {
   const { notation } = useNotation();
   const [root, setRoot] = useState<string>("C");
   const [formula, setFormula] = useState<ChordFormula>(CHORD_FORMULAS[0]);
+  const { play } = useChordPlayer();
 
   const chordName = `${root}${formula.suffix}`;
   const chordDual = displayChord(chordName, notation);
+
+  const playChord = () => {
+    const rootChromatic = CHROMATIC_ROOTS.indexOf(
+      root as (typeof CHROMATIC_ROOTS)[number],
+    );
+    if (rootChromatic < 0) return;
+    play(rootChromatic, formula.intervals);
+  };
 
   return (
     <SafeAreaView style={styles.safe} edges={["top", "left", "right"]}>
@@ -55,11 +65,14 @@ export function LearnScreen() {
 
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel="Escuchar acorde — próximamente"
-          disabled
-          style={[styles.audioBtn, styles.audioBtnDisabled]}
+          accessibilityLabel={`Escuchar ${chordDual.primary} en arpegio`}
+          onPress={playChord}
+          style={({ pressed }) => [
+            styles.audioBtn,
+            pressed && styles.audioBtnPressed,
+          ]}
         >
-          <Text style={styles.audioBtnLabel}>♪ Escuchar — próximamente</Text>
+          <Text style={styles.audioBtnLabel}>♪ Escuchar arpegio</Text>
         </Pressable>
 
         <Text style={styles.sectionLabel}>Raíz</Text>
@@ -188,16 +201,16 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.sm,
     paddingHorizontal: spacing.md,
     borderRadius: radius.pill,
-    backgroundColor: colors.surfaceAlt,
+    backgroundColor: colors.primaryTint,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: colors.primaryTintBorder,
     alignItems: "center",
   },
-  audioBtnDisabled: { opacity: 0.6 },
+  audioBtnPressed: { opacity: 0.6 },
   audioBtnLabel: {
     ...typography.body,
-    color: colors.textMuted,
-    fontWeight: "600",
+    color: colors.primarySoft,
+    fontWeight: "700",
   },
 
   sectionLabel: {
