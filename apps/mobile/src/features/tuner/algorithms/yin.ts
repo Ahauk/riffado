@@ -30,7 +30,11 @@ export interface YinConfig {
 }
 
 const DEFAULT_CONFIG: Omit<YinConfig, "sampleRate"> = {
-  threshold: 0.12,
+  // 0.12 was too strict for high E (E4 ≈ 330 Hz) and B3 — those notes
+  // decay fast on guitar so most chunks see post-attack low energy and
+  // the cumulative-mean dip never went below 0.12. 0.18 still rejects
+  // pure noise but admits the softer notes.
+  threshold: 0.18,
   minFreq: 70,
   maxFreq: 1300,
 };

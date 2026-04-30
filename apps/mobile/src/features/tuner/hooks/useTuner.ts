@@ -11,8 +11,15 @@ import { NoteReading, readingFromFrequency } from "../utils/noteMapping";
 // real-time.
 const SAMPLE_RATE = 16000;
 const CHUNK_INTERVAL_MS = 100;
-const MIN_CONFIDENCE = 0.5;
-const EMA_ALPHA = 0.4;
+// EMA_ALPHA at 0.4 was sluggish — when YIN momentarily latched onto a
+// harmonic, the smoothed value stayed wrong for ~10 frames. 0.75 settles
+// in 2-3 frames while still suppressing single-frame jitter.
+const EMA_ALPHA = 0.75;
+// Loose-ish YIN threshold + low MIN_CONFIDENCE so high strings (B3, E4),
+// which have softer attacks, still register. Outlier rejection below
+// keeps wild jumps (typically octave errors) from polluting the EMA.
+const MIN_CONFIDENCE = 0.4;
+const OUTLIER_RATIO = 1.4; // freq jumps >40% snap-reset the smoother.
 
 export type TunerStatus = "idle" | "starting" | "listening" | "denied" | "error";
 
@@ -106,8 +113,20 @@ export function useTuner(): TunerState {
       return;
     }
     const prev = smoothedFreqRef.current;
-    const smoothed =
-      prev == null ? result.freq : prev * (1 - EMA_ALPHA) + result.freq * EMA_ALPHA;
+    let smoothed: number;
+    if (prev == null) {
+      smoothed = result.freq;
+    } else {
+      // Reject extreme jumps — usually YIN flipping to an octave or
+      // half-octave error. Snap to the new freq instead of slow-fading.
+      const ratio = result.freq / prev;
+      const isOutlier = ratio > OUTLIER_RATIO || ratio < 1 / OUTLIER_RATIO;
+      if (isOutlier) {
+        smoothed = result.freq;
+      } else {
+        smoothed = prev * (1 - EMA_ALPHA) + result.freq * EMA_ALPHA;
+      }
+    }
     smoothedFreqRef.current = smoothed;
     setReading(readingFromFrequency(smoothed));
   }, []);
