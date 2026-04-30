@@ -70,6 +70,27 @@
   rotada sobre su propio centro adentro de un `AnimatedG` para que
   no se desvíen del pentagrama. Copy: "Rifando tu rola" → "Analizando
   tu rola / para que te **Riffes**" (Riffes en morado brand).
+- ✅ **Highlight del acorde activo durante playback.** El player se
+  subió a `ResultsScreen` (controlado en lugar de autocontenido) y
+  pasa `player + status` al `AudioPlayerBar`. El acorde cuyo
+  `[start_sec, end_sec)` contiene `currentTime` se tiñe en
+  `primaryTint` con borde izquierdo morado y timestamp en
+  `primarySoft`; la `FlatList` hace `scrollToIndex` con
+  `viewPosition: 0.5`. Auto-scroll solo mientras `playing=true` para
+  respetar el scroll manual del usuario al pausar.
+- ✅ **Afinador cromático con YIN.** Tab "Afinador" funcional:
+  `@siteed/audio-studio` con `streamFormat=float32` da chunks PCM
+  cada 100 ms, YIN puro detecta el f0 (16 kHz para que Hermes siga
+  el ritmo en tiempo real), `noteMapping` mapea a nota + octava +
+  cents + cuerda EADGBE sugerida. Aguja SVG con `Animated.spring`
+  (tension 80, friction 9) para feel natural. EMA `alpha=0.85` con
+  outlier rejection (jumps >40% snap-resetean el smoother) evita
+  que octave errors atasquen la lectura. Hint friendly bajo la
+  nota: "Apriétale tantito" / "Aflójale tantito" / "¡Ya quedó!".
+  Línea de actual/meta Hz para usuarios técnicos. Auto-start al
+  enfocar el tab y auto-stop al blur (sin botones). YIN tunings:
+  threshold 0.18 (admite cuerdas agudas con attack rápido),
+  MIN_CONFIDENCE 0.4 (filtra ruido).
 
 ## Corto plazo (próximas 1–2 sesiones)
 
@@ -78,10 +99,10 @@
   salen 7mas falsas, (2) canción con 7ma real (bolero/bossa/Beatles)
   para confirmar detección, (3) clips previos para regresión.
   Si faltan 7mas reales → subir a 0.90. Si sobran falsas → bajar a 0.85.
-- **Highlight del acorde activo durante playback** — el reproductor
-  ya está; falta sincronizar `currentTime` del player con el chord
-  cuyo `[start_sec, end_sec]` lo contiene, y resaltar esa fila en la
-  lista (scroll-into-view + tinte morado). ~1-2 h.
+- **Letras manuales** — pestaña "Letra" en Results es placeholder
+  hoy. Versión sin licensing: textarea para que el user pegue su
+  propia letra y se persista junto al análisis. Sync con timestamps
+  más adelante. Musixmatch API es mediano plazo (cuesta + licensing).
 - **Arpegios / fingerpicking**: actualmente el detector funciona con
   arpegios pero con menos confianza (más badges "revísalo"). Ventanas
   de análisis más largas (~2-3s vs 1s actual) o pesos más altos en
@@ -111,9 +132,6 @@
   acordes vs ~10–15 actuales. Sesión de diseño dedicada antes de
   implementar. Hasta entonces, 60 s cubre el 90% del caso real
   (verso entero o verso+coro).
-- **Afinador cromático integrado** (el que Victor pidió explícito).
-  Pitch detection en tiempo real (YIN o PYIN), nota + cents off,
-  visualizador aguja. Mic continuo ya lo tenemos vía expo-audio. 1–2 días.
 - **Mejorar detector**: Chordino / autochord vía Docker (de 70% → ~85%
   esperado). Considerar modelo ML moderno (BTC, CRNN) solo si hay
   demanda real medida.

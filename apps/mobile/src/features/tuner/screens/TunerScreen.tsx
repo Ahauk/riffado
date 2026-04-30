@@ -17,7 +17,7 @@ function tuningHint(cents: number): { text: string; tone: "ok" | "off" } | null 
 }
 
 export function TunerScreen() {
-  const { status, reading, confidence, start, stop } = useTuner();
+  const { status, reading, start, stop } = useTuner();
 
   // Auto-start when the tab becomes focused, auto-stop when it loses focus.
   // The user shouldn't have to tap a button to begin tuning — opening the
@@ -118,11 +118,7 @@ export function TunerScreen() {
           Verde = afinada (±5 ¢) · Amarillo = cerca (±15 ¢) · Gris = sigue ajustando.
         </Text>
         <Text style={styles.confidenceHint}>
-          {status === "listening"
-            ? `Confianza: ${Math.round(confidence * 100)}%`
-            : status === "starting"
-              ? "Preparando micrófono..."
-              : ""}
+          {status === "starting" ? "Preparando micrófono..." : ""}
         </Text>
       </View>
     </SafeAreaView>
