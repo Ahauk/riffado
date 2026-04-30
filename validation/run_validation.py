@@ -27,7 +27,7 @@ CHORD_RE = re.compile(r"^([A-G][#b]?)(.*)$")
 # Keep in sync with apps/api/app/services/chord_detection.py — same 60
 # templates + bias. Lowering the 7th bias favours triads; raising it
 # surfaces more 7ths. Tuned against this same validation set.
-SEVENTH_BIAS = 0.88
+SEVENTH_BIAS = 0.85
 
 
 def build_templates():

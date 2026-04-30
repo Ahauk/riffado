@@ -24,9 +24,10 @@ CHORD_RE = re.compile(r"^([A-G][#b]?)(.*)$")
 # Templates with 4 active pitch classes (7ths) get a higher score by
 # construction against noisy chroma, because the extra 7th often lines up
 # with overtones of the root/3rd/5th. SEVENTH_BIAS multiplies the 7th-chord
-# scores before argmax to counter that. Calibrated against validation set
-# to preserve the triad baseline (70% exact / 75% root).
-SEVENTH_BIAS = 0.88
+# scores before argmax to counter that. Calibrated against validation set —
+# see validation/SEVENTH_BIAS_PROTOCOL.md for the trade-off (lower => fewer
+# false-positive 7ths in triadic songs; higher => more real 7ths recovered).
+SEVENTH_BIAS = 0.85
 
 
 def _build_templates() -> tuple[list[str], np.ndarray, np.ndarray]:
