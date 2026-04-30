@@ -1,7 +1,8 @@
 import { useFocusEffect } from "@react-navigation/native";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
+import { useAudioPlayer, useAudioPlayerStatus } from "expo-audio";
 import * as Sharing from "expo-sharing";
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Alert, FlatList, Pressable, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { captureRef } from "react-native-view-shot";
@@ -71,6 +72,7 @@ function confidenceBadge(v: number): ConfidenceBadge | null {
 
 interface ChordRowProps {
   chord: ChordSegment;
+  active: boolean;
   onPress: () => void;
   onEditPress: () => void;
 }
@@ -86,7 +88,7 @@ function richQualitySuffix(chord: ChordSegment): string | null {
   return null;
 }
 
-function ChordRow({ chord, onPress, onEditPress }: ChordRowProps) {
+function ChordRow({ chord, active, onPress, onEditPress }: ChordRowProps) {
   const display = displayOf(chord);
   const shape = findShape(display.shape_id) ?? findShape(display.name);
   const badge = confidenceBadge(chord.confidence);
@@ -98,9 +100,16 @@ function ChordRow({ chord, onPress, onEditPress }: ChordRowProps) {
       onPress={onPress}
       accessibilityRole="button"
       accessibilityLabel={`Ver diagrama de ${display.name}`}
-      style={({ pressed }) => [rowStyles.row, pressed && rowStyles.rowPressed]}
+      accessibilityState={active ? { selected: true } : undefined}
+      style={({ pressed }) => [
+        rowStyles.row,
+        active && rowStyles.rowActive,
+        pressed && rowStyles.rowPressed,
+      ]}
     >
-      <Text style={rowStyles.time}>{formatTime(chord.start_sec)}</Text>
+      <Text style={[rowStyles.time, active && rowStyles.timeActive]}>
+        {formatTime(chord.start_sec)}
+      </Text>
       <View style={rowStyles.nameWrap}>
         <View style={rowStyles.nameTopRow}>
           <Text style={rowStyles.name}>
@@ -158,6 +167,13 @@ export function ResultsScreen({ route, navigation }: Props) {
   const [audioUri, setAudioUri] = useState<string | undefined>();
   const [sharing, setSharing] = useState(false);
   const shareRef = useRef<View>(null);
+  const listRef = useRef<FlatList<ChordSegment>>(null);
+
+  // Audio playback lives at the screen level so its `currentTime` can drive
+  // both the player bar AND the chord-row highlight. updateInterval=100ms
+  // gives a smooth-enough scroll without burning much CPU.
+  const player = useAudioPlayer(audioUri ?? null, { updateInterval: 100 });
+  const status = useAudioPlayerStatus(player);
 
   // When coming back from ChordDetail, re-read storage so corrections made
   // there show up here. The analysis is already persisted right after
@@ -186,6 +202,37 @@ export function ResultsScreen({ route, navigation }: Props) {
     () => computeProgressionLabel(analysis.chords, analysis.key),
     [analysis.chords, analysis.key],
   );
+
+  // The chord whose [start_sec, end_sec) contains the current playback time.
+  // null before the first chord, or when there is no audio. Stays put when
+  // paused so the user keeps a visual anchor on the row they were practising.
+  const activeChordIdx = useMemo(() => {
+    if (!audioUri) return null;
+    const t = status.currentTime ?? 0;
+    if (t <= 0) return null;
+    for (const c of analysis.chords) {
+      if (t >= c.start_sec && t < c.end_sec) return c.idx;
+    }
+    return null;
+  }, [audioUri, status.currentTime, analysis.chords]);
+
+  // Auto-scroll the active chord into view while playing. We skip when paused
+  // so the user can scroll manually without being yanked back. scrollToIndex
+  // can fail for far-off rows; the failure handler retries with a best-effort
+  // offset estimate.
+  useEffect(() => {
+    if (activeChordIdx === null) return;
+    if (!status.playing) return;
+    if (tab !== "chords") return;
+    const arrayIdx = analysis.chords.findIndex((c) => c.idx === activeChordIdx);
+    if (arrayIdx < 0) return;
+    listRef.current?.scrollToIndex({
+      index: arrayIdx,
+      animated: true,
+      viewPosition: 0.5,
+    });
+  }, [activeChordIdx, status.playing, tab, analysis.chords]);
+
   const editingChord =
     editingIdx !== null
       ? analysis.chords.find((c) => c.idx === editingIdx) ?? null
@@ -349,7 +396,7 @@ export function ResultsScreen({ route, navigation }: Props) {
         </View>
         {audioUri && (
           <View style={styles.playerWrap}>
-            <AudioPlayerBar uri={audioUri} />
+            <AudioPlayerBar player={player} status={status} />
           </View>
         )}
       </View>
@@ -375,11 +422,14 @@ export function ResultsScreen({ route, navigation }: Props) {
 
       {tab === "chords" ? (
         <FlatList
+          ref={listRef}
           data={analysis.chords}
+          extraData={activeChordIdx}
           keyExtractor={(c) => String(c.idx)}
           renderItem={({ item }) => (
             <ChordRow
               chord={item}
+              active={item.idx === activeChordIdx}
               onPress={() =>
                 navigation.navigate("ChordDetail", {
                   analysisId: analysis.analysis_id,
@@ -393,6 +443,18 @@ export function ResultsScreen({ route, navigation }: Props) {
           )}
           contentContainerStyle={styles.list}
           ItemSeparatorComponent={() => <View style={styles.sep} />}
+          onScrollToIndexFailed={(info) => {
+            // FlatList sometimes fails when the target row hasn't been
+            // measured yet (e.g. far down the list). Retry with a best-effort
+            // estimate after layout settles.
+            const wait = new Promise((r) => setTimeout(r, 80));
+            void wait.then(() => {
+              listRef.current?.scrollToOffset({
+                offset: info.averageItemLength * info.index,
+                animated: true,
+              });
+            });
+          }}
         />
       ) : (
         <View style={styles.emptyLyrics}>
@@ -615,15 +677,28 @@ const styles = StyleSheet.create({
   },
 });
 
+const ACTIVE_BORDER = 3;
+
 const rowStyles = StyleSheet.create({
   row: {
     flexDirection: "row",
     alignItems: "center",
     paddingVertical: spacing.md,
+    paddingHorizontal: spacing.sm,
     gap: spacing.md,
+    // Reserve the active border slot so non-active rows don't shift when
+    // a sibling becomes active.
+    borderLeftWidth: ACTIVE_BORDER,
+    borderLeftColor: "transparent",
+    borderRadius: radius.sm,
+  },
+  rowActive: {
+    backgroundColor: colors.primaryTint,
+    borderLeftColor: colors.primary,
   },
   rowPressed: { opacity: 0.6 },
   time: { ...typography.caption, color: colors.textMuted, width: 48 },
+  timeActive: { color: colors.primarySoft, fontWeight: "700" },
   nameWrap: { flex: 1, gap: 2 },
   nameTopRow: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
   name: { ...typography.h2, color: colors.text },

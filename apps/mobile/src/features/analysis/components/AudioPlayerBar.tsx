@@ -1,9 +1,5 @@
 import Slider from "@react-native-community/slider";
-import {
-  setAudioModeAsync,
-  useAudioPlayer,
-  useAudioPlayerStatus,
-} from "expo-audio";
+import { AudioPlayer, AudioStatus, setAudioModeAsync } from "expo-audio";
 import { useEffect, useRef, useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import Svg, { Path, Rect } from "react-native-svg";
@@ -34,7 +30,8 @@ function PauseIcon() {
 }
 
 interface AudioPlayerBarProps {
-  uri: string;
+  player: AudioPlayer;
+  status: AudioStatus;
 }
 
 function formatClock(sec: number): string {
@@ -48,17 +45,12 @@ function formatClock(sec: number): string {
  * Compact playback bar for a persisted analysis fragment. Renders a play/pause
  * toggle, a draggable scrub bar, and current/total timestamps in mm:ss.
  *
- * The slider tracks the player's currentTime, but during a drag we hold the
- * displayed value locally so the scrub gesture feels responsive (otherwise
- * the slider would snap back every time the player emits a status update).
- *
- * The hook is fed the bare string URI (not an object) on purpose: passing
- * `{ uri }` inline rebuilds the source identity on every render, which can
- * keep the player in a perpetual "loading" state on iOS.
+ * Now controlled: player + status are owned by the parent screen so the
+ * progress can also drive other UI (e.g. highlighting the active chord row
+ * in Results). The bar still owns the local scrub state because dragging is
+ * a UI concern that shouldn't bubble up.
  */
-export function AudioPlayerBar({ uri }: AudioPlayerBarProps) {
-  const player = useAudioPlayer(uri, { updateInterval: 100 });
-  const status = useAudioPlayerStatus(player);
+export function AudioPlayerBar({ player, status }: AudioPlayerBarProps) {
   const [scrubValue, setScrubValue] = useState<number | null>(null);
   const seekDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
