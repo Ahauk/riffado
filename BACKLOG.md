@@ -155,14 +155,22 @@
   oscilador (suena a "synth", asset zero). Probable empezar con
   oscilador para validar UX, después subir a samples si el feature pega.
   Scope ~1-2 sesiones cuando lleguemos a la pestaña Aprende.
-- **Notación latina (Do/Re/Mi) opcional en Settings** — toggle para
-  cambiar de notación anglosajona (C/D/E) a latina. Afecta nombres de
-  acordes en Results, Historial, Glosario, y el círculo de quintas
-  cuando exista. La data interna se queda en MIDI/inglés; solo el
-  display cambia. Mapeo: C→Do, C#→Do#, D→Re, D#→Re#, E→Mi, F→Fa,
-  F#→Fa#, G→Sol, G#→Sol#, A→La, A#→La#, B→Si. Default es-MX:
-  preferimos anglosajona (es el estándar de tablaturas y partituras
-  pop/rock que el usuario ve en internet).
+- **Notación dual (anglosajona + latina) con toggle de prioridad.**
+  Las dos notaciones SIEMPRE visibles: una grande (la primaria) y la
+  otra como superíndice/secundaria pequeña. El toggle en Settings
+  decide cuál va grande. Razón: ~99% de los tabs y cancioneros en
+  internet usan inglesa (D, G, A...), así que si un usuario latino
+  solo ve Do/Re/Mi pierde la conexión con el resto del ecosistema.
+  Mostrar las dos pasivamente le enseña la equivalencia sin tutorial.
+  - Toggle "Inglesa" (default): `G mayor` grande, `Sol` chiquito al lado.
+  - Toggle "Latina": `Sol mayor` grande, `G` chiquito al lado.
+  - Afecta: pills de Results, ChordRow, ChordDetail, ShareableCard,
+    círculo de quintas, ChordPickerSheet.
+  - Mapeo: C→Do, C#→Do#, D→Re, D#→Re#, E→Mi, F→Fa, F#→Fa#, G→Sol,
+    G#→Sol#, A→La, A#→La#, B→Si.
+  - Data interna se queda en inglesa/MIDI; solo el display cambia.
+  - Bonus: agregar entrada al glosario con la tabla completa de
+    equivalencia para reforzar el aprendizaje.
 - **Settings más completo**:
   - Toggle "mostrar grados armónicos" (default on).
   - Toggle "sugerir capo automáticamente" (default on).
