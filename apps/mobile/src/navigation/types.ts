@@ -5,6 +5,7 @@ import { AnalysisResult, ChordSegment, KeyInfo } from "../types/api";
 export type MainTabParamList = {
   HomeTab: undefined;
   HistoryTab: undefined;
+  LearnTab: undefined;
   TunerTab: undefined;
 };
 

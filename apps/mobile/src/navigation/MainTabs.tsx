@@ -4,6 +4,7 @@ import { StyleSheet } from "react-native";
 
 import { HomeScreen } from "../features/history/screens/HomeScreen";
 import { HistoryListScreen } from "../features/history/screens/HistoryListScreen";
+import { LearnScreen } from "../features/learn/screens/LearnScreen";
 import { TunerScreen } from "../features/tuner/screens/TunerScreen";
 import { colors } from "../theme/tokens";
 import { AnimatedTabBar } from "./AnimatedTabBar";
@@ -48,6 +49,16 @@ export function MainTabs() {
           title: "Historial",
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="time-outline" color={color} size={size} />
+          ),
+        }}
+      />
+      <Tab.Screen
+        name="LearnTab"
+        component={LearnScreen}
+        options={{
+          title: "Aprende",
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="school-outline" color={color} size={size} />
           ),
         }}
       />
