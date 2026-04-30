@@ -9,7 +9,7 @@ import { useTuner } from "../hooks/useTuner";
 import { tuningQuality } from "../utils/noteMapping";
 
 export function TunerScreen() {
-  const { status, reading, confidence, start, stop } = useTuner();
+  const { status, reading, confidence, debug, start, stop } = useTuner();
 
   // Auto-start when the tab becomes focused, auto-stop when it loses focus.
   // The user shouldn't have to tap a button to begin tuning — opening the
@@ -99,6 +99,13 @@ export function TunerScreen() {
               ? "Preparando micrófono..."
               : ""}
         </Text>
+        {/* Diagnostic strip — visible debug since console.logs aren't reaching
+            Metro. Remove once the tuner is dialled in. */}
+        {status === "listening" && (
+          <Text style={styles.debugHint}>
+            chunks {debug.chunksSeen} · size {debug.chunkSize} · last {debug.lastChunkAgoMs}ms · max {debug.maxAmplitude.toFixed(3)} · raw {debug.rawFreq?.toFixed(1) ?? "—"} Hz
+          </Text>
+        )}
       </View>
     </SafeAreaView>
   );
@@ -182,5 +189,12 @@ const styles = StyleSheet.create({
     textAlign: "center",
     fontVariant: ["tabular-nums"],
     minHeight: 18,
+  },
+  debugHint: {
+    fontSize: 10,
+    color: colors.textMuted,
+    textAlign: "center",
+    fontVariant: ["tabular-nums"],
+    opacity: 0.6,
   },
 });

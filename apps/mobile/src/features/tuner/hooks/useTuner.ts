@@ -4,10 +4,15 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { detectPitchYin } from "../algorithms/yin";
 import { NoteReading, readingFromFrequency } from "../utils/noteMapping";
 
-const SAMPLE_RATE = 44100;
-const CHUNK_INTERVAL_MS = 100; // 100ms ≈ 4410 samples → enough window for low-E (~82 Hz, 12 cycles).
-const MIN_CONFIDENCE = 0.85;
-const EMA_ALPHA = 0.4; // Exponential moving average on detected frequency to steady the needle.
+// 16 kHz is plenty for guitar pitch (E2≈82 Hz, E4≈330 Hz, harmonics up to
+// ~5 kHz). At 44.1 kHz, YIN's O(N²) per chunk landed around 5M ops which
+// Hermes was processing slower than the 100 ms cadence, so chunks queued
+// up and the UI froze with stale readings. 16 kHz drops it ~8× and stays
+// real-time.
+const SAMPLE_RATE = 16000;
+const CHUNK_INTERVAL_MS = 100;
+const MIN_CONFIDENCE = 0.5;
+const EMA_ALPHA = 0.4;
 
 export type TunerStatus = "idle" | "starting" | "listening" | "denied" | "error";
 
@@ -16,6 +21,14 @@ export interface TunerState {
   reading: NoteReading | null;
   /** Confidence of the most recent YIN result (0..1). */
   confidence: number;
+  /** Diagnostic snapshot from the last chunk so the screen can surface it. */
+  debug: {
+    chunkSize: number;
+    rawFreq: number | null;
+    maxAmplitude: number;
+    chunksSeen: number;
+    lastChunkAgoMs: number;
+  };
   start: () => Promise<void>;
   stop: () => Promise<void>;
 }
@@ -49,11 +62,44 @@ export function useTuner(): TunerState {
   statusRef.current = status;
 
   const smoothedFreqRef = useRef<number | null>(null);
+  const chunksSeenRef = useRef(0);
+  const lastChunkAtRef = useRef(0);
+  const [debug, setDebug] = useState<TunerState["debug"]>({
+    chunkSize: 0,
+    rawFreq: null,
+    maxAmplitude: 0,
+    chunksSeen: 0,
+    lastChunkAgoMs: 0,
+  });
 
   const handleChunk = useCallback(async (samples: Float32Array) => {
     if (samples.length < 32) return;
+    const now = Date.now();
+    chunksSeenRef.current += 1;
+    const sinceLast = lastChunkAtRef.current === 0 ? 0 : now - lastChunkAtRef.current;
+    lastChunkAtRef.current = now;
+
+    let max = 0;
+    for (let i = 0; i < samples.length; i++) {
+      const a = Math.abs(samples[i]);
+      if (a > max) max = a;
+    }
+
     const result = detectPitchYin(samples, { sampleRate: SAMPLE_RATE });
     setConfidence(result.confidence);
+
+    // Surface raw diagnostics every ~500ms so the screen can show whether
+    // chunks are arriving at all and what YIN is producing.
+    if (chunksSeenRef.current % 5 === 0) {
+      setDebug({
+        chunkSize: samples.length,
+        rawFreq: result.freq,
+        maxAmplitude: max,
+        chunksSeen: chunksSeenRef.current,
+        lastChunkAgoMs: sinceLast,
+      });
+    }
+
     if (result.freq == null || result.confidence < MIN_CONFIDENCE) {
       // Don't override the last good reading — keeps the UI stable while the
       // user moves between strings or lifts off briefly.
@@ -128,5 +174,5 @@ export function useTuner(): TunerState {
     };
   }, []);
 
-  return { status, reading, confidence, start, stop };
+  return { status, reading, confidence, debug, start, stop };
 }

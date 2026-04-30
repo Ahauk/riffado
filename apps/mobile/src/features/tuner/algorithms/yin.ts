@@ -58,10 +58,11 @@ export function detectPitchYin(
   const tauMax = Math.min(halfLen - 1, Math.floor(sampleRate / minFreq));
   if (tauMax <= tauMin) return { freq: null, confidence: 0 };
 
-  // Step 1: difference function. Only compute for τ in [tauMin, tauMax].
-  // d[0] is unused.
-  const yinBuf = new Float32Array(halfLen);
-  for (let tau = 1; tau < halfLen; tau++) {
+  // Step 1: difference function. We only need τ up to tauMax (for the
+  // running sum normalisation in step 2 we need values from τ=1 onwards
+  // up to and including tauMax). Anything beyond is wasted work.
+  const yinBuf = new Float32Array(tauMax + 2);
+  for (let tau = 1; tau <= tauMax; tau++) {
     let sum = 0;
     for (let i = 0; i < halfLen; i++) {
       const delta = buffer[i] - buffer[i + tau];
@@ -74,7 +75,7 @@ export function detectPitchYin(
   // d'(0) = 1; d'(τ) = d(τ) / ((1/τ) Σ d(j))
   yinBuf[0] = 1;
   let runningSum = 0;
-  for (let tau = 1; tau < halfLen; tau++) {
+  for (let tau = 1; tau <= tauMax; tau++) {
     runningSum += yinBuf[tau];
     yinBuf[tau] = (yinBuf[tau] * tau) / runningSum;
   }
