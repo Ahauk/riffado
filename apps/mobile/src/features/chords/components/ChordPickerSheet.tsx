@@ -3,6 +3,8 @@ import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from "react-nati
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { colors, radius, spacing, typography } from "../../../theme/tokens";
+import { displayChord, toLatinRoot } from "../../../utils/notation";
+import { useNotation } from "../../settings/NotationContext";
 import { findShape, groupedByRoot } from "../data/chordShapes";
 
 interface Props {
@@ -35,6 +37,7 @@ export function ChordPickerSheet({
 }: Props) {
   const [showAll, setShowAll] = useState(false);
   const groups = groupedByRoot();
+  const { notation } = useNotation();
 
   // Resolve suggestions to (name, shapeId) tuples — drop anything without a
   // diagram as a belt-and-suspenders guard (suggestAlternatives already filters).
@@ -71,10 +74,10 @@ export function ChordPickerSheet({
           <Text style={styles.title}>Cambiar acorde</Text>
           <Text style={styles.subtitle}>
             {hasCorrection
-              ? `Ahora: ${currentName}  ·  detectado: ${detectedName}`
+              ? `Ahora: ${displayChord(currentName, notation).primary}  ·  detectado: ${displayChord(detectedName, notation).primary}`
               : hasRicherDetection
-                ? `Detectado: ${detectedFullName}  (mostrado como ${detectedName})`
-                : `Detectado: ${detectedName}`}
+                ? `Detectado: ${displayChord(detectedFullName, notation).primary}  (mostrado como ${displayChord(detectedName, notation).primary})`
+                : `Detectado: ${displayChord(detectedName, notation).primary}`}
           </Text>
           <Text style={styles.hint}>
             A veces la mezcla confunde al detector. Elige el acorde que oigas
@@ -111,7 +114,7 @@ export function ChordPickerSheet({
                           selected && styles.chipLabelSelected,
                         ]}
                       >
-                        {s.name}
+                        {displayChord(s.name, notation).primary}
                       </Text>
                     </Pressable>
                   );
@@ -134,7 +137,9 @@ export function ChordPickerSheet({
           {showAll &&
             groups.map((g) => (
               <View key={g.root} style={styles.group}>
-                <Text style={styles.groupLabel}>{g.root}</Text>
+                <Text style={styles.groupLabel}>
+                  {notation === "latin" ? toLatinRoot(g.root) : g.root}
+                </Text>
                 <View style={styles.chipRow}>
                   {g.shapes.map((s) => {
                     const selected = s.chord_name === currentName;
@@ -152,7 +157,7 @@ export function ChordPickerSheet({
                             selected && styles.chipLabelSelected,
                           ]}
                         >
-                          {s.chord_name}
+                          {displayChord(s.chord_name, notation).primary}
                         </Text>
                       </Pressable>
                     );

@@ -7,13 +7,21 @@ import { HELP, HelpEntry } from "../../../components/help/helpContent";
 import { HelpBottomSheet } from "../../../components/help/HelpBottomSheet";
 import { RootStackParamList } from "../../../navigation/types";
 import { colors, radius, spacing, typography } from "../../../theme/tokens";
+import { useNotation } from "../NotationContext";
+import { Notation } from "../storage";
 
 type Props = NativeStackScreenProps<RootStackParamList, "Settings">;
 
-const GLOSSARY_KEYS = ["tonality", "progression", "capo", "confidence"] as const;
+const GLOSSARY_KEYS = ["notation", "tonality", "progression", "capo", "confidence"] as const;
+
+const NOTATION_OPTIONS: { value: Notation; label: string; example: string }[] = [
+  { value: "english", label: "Inglesa", example: "G mayor" },
+  { value: "latin", label: "Latina", example: "Sol mayor" },
+];
 
 export function SettingsScreen({ navigation }: Props) {
   const [entry, setEntry] = useState<HelpEntry | null>(null);
+  const { notation, setNotation } = useNotation();
 
   return (
     <SafeAreaView style={styles.safe}>
@@ -30,6 +38,46 @@ export function SettingsScreen({ navigation }: Props) {
       </View>
 
       <ScrollView contentContainerStyle={styles.content}>
+        <Text style={styles.sectionTitle}>Notación</Text>
+        <Text style={styles.sectionHint}>
+          Las dos siempre se ven; elige cuál va grande. La inglesa (C, D, E…)
+          es la que usan casi todos los tabs en internet.
+        </Text>
+        <View style={styles.segmentedRow}>
+          {NOTATION_OPTIONS.map((opt) => {
+            const selected = notation === opt.value;
+            return (
+              <Pressable
+                key={opt.value}
+                onPress={() => setNotation(opt.value)}
+                accessibilityRole="button"
+                accessibilityState={{ selected }}
+                style={[
+                  styles.segment,
+                  selected && styles.segmentSelected,
+                ]}
+              >
+                <Text
+                  style={[
+                    styles.segmentLabel,
+                    selected && styles.segmentLabelSelected,
+                  ]}
+                >
+                  {opt.label}
+                </Text>
+                <Text
+                  style={[
+                    styles.segmentExample,
+                    selected && styles.segmentExampleSelected,
+                  ]}
+                >
+                  {opt.example}
+                </Text>
+              </Pressable>
+            );
+          })}
+        </View>
+
         <Text style={styles.sectionTitle}>Glosario</Text>
         <Text style={styles.sectionHint}>
           Los conceptos que usamos en la app, explicados en corto. Toca
@@ -115,4 +163,30 @@ const styles = StyleSheet.create({
   itemTitle: { ...typography.body, color: colors.text, flex: 1 },
   itemArrow: { color: colors.textMuted, fontSize: 22 },
   itemValue: { ...typography.body, color: colors.textMuted },
+
+  segmentedRow: {
+    flexDirection: "row",
+    gap: spacing.sm,
+    marginTop: spacing.xs,
+    marginBottom: spacing.md,
+  },
+  segment: {
+    flex: 1,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.md,
+    borderRadius: radius.md,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+    alignItems: "center",
+    gap: 2,
+  },
+  segmentSelected: {
+    backgroundColor: colors.primaryTint,
+    borderColor: colors.primary,
+  },
+  segmentLabel: { ...typography.body, color: colors.textMuted, fontWeight: "600" },
+  segmentLabelSelected: { color: colors.text },
+  segmentExample: { ...typography.caption, color: colors.textMuted },
+  segmentExampleSelected: { color: colors.primarySoft, fontWeight: "700" },
 });

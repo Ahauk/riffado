@@ -34,7 +34,9 @@ import { RootStackParamList } from "../../../navigation/types";
 import { AnalysisResult, ChordSegment } from "../../../types/api";
 import { BRAND_FONT, colors, radius, spacing, typography } from "../../../theme/tokens";
 import { suggestAlternatives } from "../../../utils/chordSuggestions";
+import { displayChord, displayKey } from "../../../utils/notation";
 import { computeProgressionLabel, degreeOf } from "../../../utils/roman";
+import { useNotation } from "../../settings/NotationContext";
 import { AudioPlayerBar } from "../components/AudioPlayerBar";
 import { ShareableCard } from "../components/ShareableCard";
 
@@ -103,7 +105,9 @@ function richQualitySuffix(chord: ChordSegment): string | null {
 }
 
 function ChordRow({ chord, active, onPress, onEditPress }: ChordRowProps) {
+  const { notation } = useNotation();
   const display = displayOf(chord);
+  const dual = displayChord(display.name, notation);
   const shape = findShape(display.shape_id) ?? findShape(display.name);
   const badge = confidenceBadge(chord.confidence);
   const corrected = Boolean(chord.user_correction);
@@ -127,7 +131,10 @@ function ChordRow({ chord, active, onPress, onEditPress }: ChordRowProps) {
       <View style={rowStyles.nameWrap}>
         <View style={rowStyles.nameTopRow}>
           <Text style={rowStyles.name}>
-            {display.name}
+            {dual.primary}
+            {dual.secondary !== "" && (
+              <Text style={rowStyles.altName}>  {dual.secondary}</Text>
+            )}
             {richSuffix && (
               <Text style={rowStyles.richSuffix}> {richSuffix}</Text>
             )}
@@ -208,8 +215,9 @@ export function ResultsScreen({ route, navigation }: Props) {
     }, [analysis.analysis_id]),
   );
 
-  const modeLabel = analysis.key.mode === "major" ? "mayor" : "menor";
-  const keyLabel = `${analysis.key.root} ${modeLabel}`;
+  const { notation } = useNotation();
+  const keyDual = displayKey(analysis.key.root, analysis.key.mode, notation);
+  const keyLabel = keyDual.primary;
   const capo = analysis.suggested_capo.fret;
   const headerTitle = customTitle?.trim() || "Progresión";
   // Recompute the progression fingerprint every render so user corrections
@@ -762,6 +770,12 @@ const rowStyles = StyleSheet.create({
   nameWrap: { flex: 1, gap: 2 },
   nameTopRow: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
   name: { ...typography.h2, color: colors.text },
+  altName: {
+    fontSize: 14,
+    fontWeight: "500",
+    color: colors.textMuted,
+    letterSpacing: 0.3,
+  },
   richSuffix: {
     fontSize: 14,
     fontWeight: "500",

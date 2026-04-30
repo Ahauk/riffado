@@ -7,7 +7,9 @@ import { SafeAreaView } from "react-native-safe-area-context";
 
 import { RootStackParamList } from "../../../navigation/types";
 import { colors, radius, spacing, typography } from "../../../theme/tokens";
+import { displayChord, displayKey } from "../../../utils/notation";
 import { timeAgo } from "../../../utils/time";
+import { useNotation } from "../../settings/NotationContext";
 import { useHistory } from "../hooks/useHistory";
 import { HistoryItem } from "../storage";
 
@@ -47,12 +49,12 @@ function DeleteAction({ progress, onPress }: DeleteActionProps) {
 }
 
 function HistoryRow({ item, onPress, onDelete, onRename }: HistoryRowProps) {
+  const { notation } = useNotation();
   const a = item.analysis;
   const uniqueChords = Array.from(
-    new Set(a.chords.map((c) => c.simplified.name))
+    new Set(a.chords.map((c) => displayChord(c.simplified.name, notation).primary))
   );
-  const modeLabel = a.key.mode === "major" ? "mayor" : "menor";
-  const keyLabel = `${a.key.root} ${modeLabel}`;
+  const keyLabel = displayKey(a.key.root, a.key.mode, notation).primary;
   const title = item.custom_title?.trim() || keyLabel;
   const showSubtitle = Boolean(item.custom_title?.trim());
   const swipeRef = useRef<Swipeable>(null);

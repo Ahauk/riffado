@@ -6,6 +6,15 @@ export interface HelpEntry {
 }
 
 export const HELP: Record<string, HelpEntry> = {
+  notation: {
+    title: "Notación inglesa vs latina",
+    body: [
+      "En LATAM aprendemos las notas como Do-Re-Mi-Fa-Sol-La-Si. En la mayoría de tabs y cancioneros en internet aparecen como C-D-E-F-G-A-B (notación inglesa).",
+      "Riffado siempre muestra las dos: una grande (la que elegiste) y la otra chiquita al lado, para que conectes los dos mundos.",
+      "Equivalencia:  C=Do · D=Re · E=Mi · F=Fa · G=Sol · A=La · B=Si.",
+      "Los sostenidos se mantienen igual: C# = Do#, F# = Fa#, etc. Los sufijos también: Cm = Dom, Cmaj7 = Domaj7.",
+    ],
+  },
   tonality: {
     title: "¿Qué es la tonalidad?",
     body: [

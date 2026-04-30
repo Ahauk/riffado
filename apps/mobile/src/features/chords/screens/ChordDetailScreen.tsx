@@ -7,8 +7,10 @@ import { RootStackParamList } from "../../../navigation/types";
 import { ChordSegment } from "../../../types/api";
 import { colors, radius, spacing, typography } from "../../../theme/tokens";
 import { suggestAlternatives } from "../../../utils/chordSuggestions";
+import { displayChord } from "../../../utils/notation";
 import { degreeOf } from "../../../utils/roman";
 import { updateAnalysisChord } from "../../history/storage";
+import { useNotation } from "../../settings/NotationContext";
 import { ChordDiagramSvg } from "../components/ChordDiagramSvg";
 import { ChordPickerSheet } from "../components/ChordPickerSheet";
 import { findShape } from "../data/chordShapes";
@@ -29,6 +31,7 @@ function displayFor(seg: ChordSegment) {
 
 export function ChordDetailScreen({ route, navigation }: Props) {
   const { analysisId, chord: initialChord, progression, keyInfo } = route.params;
+  const { notation } = useNotation();
 
   // Local copy of the progression so corrections re-render without bouncing
   // back to Results. When the user goes back, Results re-reads from history
@@ -53,14 +56,14 @@ export function ChordDetailScreen({ route, navigation }: Props) {
     const seen = new Set<string>();
     const out: { idx: number; label: string }[] = [];
     for (const s of segments) {
-      const label = displayFor(s).name;
-      if (!seen.has(label)) {
-        seen.add(label);
-        out.push({ idx: s.idx, label });
+      const rawName = displayFor(s).name;
+      if (!seen.has(rawName)) {
+        seen.add(rawName);
+        out.push({ idx: s.idx, label: displayChord(rawName, notation).primary });
       }
     }
     return out;
-  }, [segments]);
+  }, [segments, notation]);
 
   const applyCorrection = useCallback(
     async (name: string, shape_id: string) => {
@@ -101,10 +104,19 @@ export function ChordDetailScreen({ route, navigation }: Props) {
       </View>
 
       <ScrollView contentContainerStyle={styles.content}>
-        <Text style={styles.chordName}>{active.name}</Text>
+        <View style={styles.chordNameWrap}>
+          <Text style={styles.chordName}>
+            {displayChord(active.name, notation).primary}
+          </Text>
+          {displayChord(active.name, notation).secondary !== "" && (
+            <Text style={styles.chordNameAlt}>
+              {displayChord(active.name, notation).secondary}
+            </Text>
+          )}
+        </View>
         {active.corrected && (
           <Text style={styles.correctedHint}>
-            Corregido por ti · detectado: {activeSeg.simplified.name}
+            Corregido por ti · detectado: {displayChord(activeSeg.simplified.name, notation).primary}
           </Text>
         )}
 
@@ -216,10 +228,17 @@ const styles = StyleSheet.create({
     paddingBottom: spacing.xl,
     gap: spacing.lg,
   },
+  chordNameWrap: { alignItems: "center", gap: 2 },
   chordName: {
     fontSize: 48,
     fontWeight: "700",
     color: colors.primary,
+  },
+  chordNameAlt: {
+    ...typography.body,
+    color: colors.textMuted,
+    fontWeight: "600",
+    letterSpacing: 0.5,
   },
   correctedHint: {
     ...typography.caption,

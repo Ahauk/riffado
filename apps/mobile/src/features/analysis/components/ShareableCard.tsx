@@ -3,8 +3,10 @@ import { StyleSheet, Text, View } from "react-native";
 
 import { ChordDiagramSvg } from "../../chords/components/ChordDiagramSvg";
 import { findShape } from "../../chords/data/chordShapes";
+import { useNotation } from "../../settings/NotationContext";
 import { BRAND_FONT, colors, radius, spacing, typography } from "../../../theme/tokens";
 import { AnalysisResult, ChordSegment } from "../../../types/api";
+import { displayChord, displayKey } from "../../../utils/notation";
 
 interface DisplayChord {
   name: string;
@@ -44,8 +46,8 @@ export const ShareableCard = forwardRef<View, ShareableCardProps>(function Share
   { analysis, progressionLabel, customTitle },
   ref,
 ) {
-  const modeLabel = analysis.key.mode === "major" ? "mayor" : "menor";
-  const keyLabel = `${analysis.key.root} ${modeLabel}`;
+  const { notation } = useNotation();
+  const keyLabel = displayKey(analysis.key.root, analysis.key.mode, notation).primary;
   const displayedTitle = customTitle?.trim() || keyLabel;
   const showSubtitle = Boolean(customTitle?.trim());
   const capoLabel =
@@ -95,7 +97,9 @@ export const ShareableCard = forwardRef<View, ShareableCardProps>(function Share
               ) : (
                 <View style={[styles.diagramFallback, DIAGRAM_SIZE]} />
               )}
-              <Text style={styles.diagramName}>{d.name}</Text>
+              <Text style={styles.diagramName}>
+                {displayChord(d.name, notation).primary}
+              </Text>
             </View>
           );
         })}
