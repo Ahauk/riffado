@@ -6,7 +6,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Alert,
   FlatList,
-  KeyboardAvoidingView,
+  InputAccessoryView,
+  Keyboard,
   Platform,
   Pressable,
   StyleSheet,
@@ -40,6 +41,8 @@ import { ShareableCard } from "../components/ShareableCard";
 type Props = NativeStackScreenProps<RootStackParamList, "Results">;
 
 type Tab = "chords" | "lyrics";
+
+const LYRICS_ACCESSORY_ID = "riffado-lyrics-accessory";
 
 function formatTime(sec: number): string {
   const m = Math.floor(sec / 60);
@@ -474,11 +477,7 @@ export function ResultsScreen({ route, navigation }: Props) {
           }}
         />
       ) : (
-        <KeyboardAvoidingView
-          style={styles.lyricsWrap}
-          behavior={Platform.OS === "ios" ? "padding" : undefined}
-          keyboardVerticalOffset={Platform.OS === "ios" ? 80 : 0}
-        >
+        <View style={styles.lyricsWrap}>
           <TextInput
             value={lyrics}
             onChangeText={setLyricsState}
@@ -490,8 +489,26 @@ export function ResultsScreen({ route, navigation }: Props) {
             placeholderTextColor={colors.textMuted}
             style={styles.lyricsInput}
             accessibilityLabel="Letra de la canción"
+            inputAccessoryViewID={
+              Platform.OS === "ios" ? LYRICS_ACCESSORY_ID : undefined
+            }
           />
-        </KeyboardAvoidingView>
+        </View>
+      )}
+
+      {Platform.OS === "ios" && (
+        <InputAccessoryView nativeID={LYRICS_ACCESSORY_ID}>
+          <View style={styles.lyricsAccessory}>
+            <Pressable
+              onPress={() => Keyboard.dismiss()}
+              hitSlop={8}
+              accessibilityRole="button"
+              accessibilityLabel="Cerrar teclado"
+            >
+              <Text style={styles.lyricsAccessoryDone}>Listo</Text>
+            </Pressable>
+          </View>
+        </InputAccessoryView>
       )}
 
       {tab === "chords" && (
@@ -668,6 +685,21 @@ const styles = StyleSheet.create({
     color: colors.text,
     lineHeight: 24,
     textAlignVertical: "top",
+  },
+  lyricsAccessory: {
+    flexDirection: "row",
+    justifyContent: "flex-end",
+    alignItems: "center",
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.sm,
+    backgroundColor: colors.surfaceAlt,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: colors.border,
+  },
+  lyricsAccessoryDone: {
+    ...typography.body,
+    color: colors.primary,
+    fontWeight: "600",
   },
 
   footerHintRow: {
