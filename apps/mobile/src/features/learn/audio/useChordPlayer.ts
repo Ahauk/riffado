@@ -1,33 +1,56 @@
-import { useAudioPlayer } from "expo-audio";
-import { useCallback, useRef } from "react";
+import { setAudioModeAsync, useAudioPlayer } from "expo-audio";
+import { useCallback, useEffect, useRef } from "react";
 
-import { DEFAULT_SAMPLE, NOTE_SAMPLES } from "./sampleMap";
+import { NOTE_SAMPLES } from "./sampleMap";
 
-const ARPEGGIO_GAP_MS = 180;
+const ARPEGGIO_GAP_MS = 240;
 const PITCH_CLASS_COUNT = 12;
 const MAX_VOICES = 4;
 
 /**
  * Plays a chord as a slow arpeggio — one note per voice, staggered by
- * ARPEGGIO_GAP_MS. Each voice gets its own player so notes can ring out
- * over each other (the natural behaviour of a guitar strum).
+ * ARPEGGIO_GAP_MS. Each voice rings out over the next so the result feels
+ * like a guitar strum rather than four staccato beeps.
  *
- * Re-pressing while a previous arpeggio is still ringing cancels its
- * pending stagger and starts a fresh one. Voices are reused, so the
- * tail of the previous chord is cut off — that's the same UX as
- * strumming a guitar twice in a row.
+ * One pre-loaded player per chromatic pitch class: replacing a player's
+ * source at runtime in expo-audio is asynchronous, so calling play()
+ * immediately after replace() races the load and the note silently no-ops.
+ * Pinning each player to a fixed note avoids that race entirely — play()
+ * just rewinds and triggers an already-loaded sample.
+ *
+ * Re-pressing during a previous arpeggio cancels its pending stagger and
+ * restarts cleanly.
  */
 export function useChordPlayer() {
-  // 4 players cover every chord type in CHORD_FORMULAS (the largest are
-  // 4-note 7ths). Each starts pointed at a default source — replaced
-  // synchronously before each play().
-  const v1 = useAudioPlayer(DEFAULT_SAMPLE);
-  const v2 = useAudioPlayer(DEFAULT_SAMPLE);
-  const v3 = useAudioPlayer(DEFAULT_SAMPLE);
-  const v4 = useAudioPlayer(DEFAULT_SAMPLE);
-  const players = [v1, v2, v3, v4];
+  // 12 pre-loaded voices — one per chromatic pitch class. Hook order is
+  // stable across renders, which is what useAudioPlayer requires.
+  const p0 = useAudioPlayer(NOTE_SAMPLES[0]);
+  const p1 = useAudioPlayer(NOTE_SAMPLES[1]);
+  const p2 = useAudioPlayer(NOTE_SAMPLES[2]);
+  const p3 = useAudioPlayer(NOTE_SAMPLES[3]);
+  const p4 = useAudioPlayer(NOTE_SAMPLES[4]);
+  const p5 = useAudioPlayer(NOTE_SAMPLES[5]);
+  const p6 = useAudioPlayer(NOTE_SAMPLES[6]);
+  const p7 = useAudioPlayer(NOTE_SAMPLES[7]);
+  const p8 = useAudioPlayer(NOTE_SAMPLES[8]);
+  const p9 = useAudioPlayer(NOTE_SAMPLES[9]);
+  const p10 = useAudioPlayer(NOTE_SAMPLES[10]);
+  const p11 = useAudioPlayer(NOTE_SAMPLES[11]);
+  const players = [p0, p1, p2, p3, p4, p5, p6, p7, p8, p9, p10, p11];
 
   const pendingTimers = useRef<ReturnType<typeof setTimeout>[]>([]);
+
+  // Force playback to ignore the silent-mode switch and route audio to the
+  // main speaker. Recording flows (tuner, /v1/analyze) leave allowsRecording
+  // pinned to true on iOS, which routes playback through the earpiece —
+  // flipping both back here makes the chord button audible regardless of
+  // where the user came from.
+  useEffect(() => {
+    void setAudioModeAsync({
+      allowsRecording: false,
+      playsInSilentMode: true,
+    }).catch(() => {});
+  }, []);
 
   const play = useCallback(
     (rootChromatic: number, intervals: number[]) => {
@@ -37,13 +60,13 @@ export function useChordPlayer() {
 
       const voices = intervals.slice(0, MAX_VOICES);
       voices.forEach((interval, i) => {
-        const pc = ((rootChromatic + interval) % PITCH_CLASS_COUNT + PITCH_CLASS_COUNT) % PITCH_CLASS_COUNT;
-        const source = NOTE_SAMPLES[pc];
-        const player = players[i];
+        const pc =
+          (((rootChromatic + interval) % PITCH_CLASS_COUNT) + PITCH_CLASS_COUNT) %
+          PITCH_CLASS_COUNT;
+        const player = players[pc];
 
         const fire = () => {
           try {
-            player.replace(source);
             player.seekTo(0);
             player.play();
           } catch (e) {
