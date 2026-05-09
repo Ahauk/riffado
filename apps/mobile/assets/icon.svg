@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <defs>
+    <radialGradient id="bg" cx="50%" cy="42%" r="75%">
+      <stop offset="0%" stop-color="#9264FF" />
+      <stop offset="60%" stop-color="#7B4CFF" />
+      <stop offset="100%" stop-color="#3B1F9E" />
+    </radialGradient>
+    <filter id="glow" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur in="SourceGraphic" stdDeviation="22" />
+    </filter>
+  </defs>
+
+  <rect width="1024" height="1024" fill="url(#bg)" />
+
+  <!-- Soft outer glow -->
+  <g transform="translate(302 232) scale(5.0)" filter="url(#glow)" opacity="0.55">
+    <path d="M 44 6 C 22 6 6 22 6 46 C 6 64 16 78 32 86 L 32 100 Q 32 106 26 106 L 24 106 L 28 110 L 36 110 Q 44 110 44 102 L 44 88 C 64 86 78 70 78 48 C 78 24 64 6 44 6 Z M 44 20 C 58 20 68 32 68 48 C 68 64 58 76 46 76 Q 38 76 38 68 L 38 60 Q 48 60 48 50 Q 48 40 38 40 Q 26 40 26 54 Q 26 70 42 76 C 56 80 70 70 70 52 C 70 34 60 20 44 20 Z" fill="#FFFFFF" fill-rule="evenodd" />
+    <circle cx="80" cy="34" r="5" fill="#FFFFFF" />
+    <circle cx="80" cy="56" r="5" fill="#FFFFFF" />
+  </g>
+
+  <!-- Crisp clef foreground -->
+  <g transform="translate(302 232) scale(5.0)">
+    <path d="M 44 6 C 22 6 6 22 6 46 C 6 64 16 78 32 86 L 32 100 Q 32 106 26 106 L 24 106 L 28 110 L 36 110 Q 44 110 44 102 L 44 88 C 64 86 78 70 78 48 C 78 24 64 6 44 6 Z M 44 20 C 58 20 68 32 68 48 C 68 64 58 76 46 76 Q 38 76 38 68 L 38 60 Q 48 60 48 50 Q 48 40 38 40 Q 26 40 26 54 Q 26 70 42 76 C 56 80 70 70 70 52 C 70 34 60 20 44 20 Z" fill="#FFFFFF" fill-rule="evenodd" />
+    <circle cx="80" cy="34" r="5" fill="#FFFFFF" />
+    <circle cx="80" cy="56" r="5" fill="#FFFFFF" />
+  </g>
+</svg>

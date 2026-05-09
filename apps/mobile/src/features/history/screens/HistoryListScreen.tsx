@@ -9,7 +9,7 @@ import { RootStackParamList } from "../../../navigation/types";
 import { colors, radius, spacing, typography } from "../../../theme/tokens";
 import { displayChord, displayKey } from "../../../utils/notation";
 import { timeAgo } from "../../../utils/time";
-import { useNotation } from "../../settings/NotationContext";
+import { useNotation } from "../../settings/SettingsContext";
 import { useHistory } from "../hooks/useHistory";
 import { HistoryItem } from "../storage";
 

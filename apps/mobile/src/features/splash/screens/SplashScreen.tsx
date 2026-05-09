@@ -3,8 +3,9 @@ import { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { useEffect, useRef, useState } from "react";
 import { Animated, Easing, StyleSheet, Text, View } from "react-native";
 
+import { Wordmark } from "../../../components/brand/Wordmark";
 import { RootStackParamList } from "../../../navigation/types";
-import { BRAND_FONT, colors, spacing, typography } from "../../../theme/tokens";
+import { colors, spacing, typography } from "../../../theme/tokens";
 
 type Props = NativeStackScreenProps<RootStackParamList, "Splash">;
 
@@ -71,7 +72,7 @@ export function SplashScreen({ navigation }: Props) {
     <View style={styles.safe}>
       {phase === "intro" && (
         <Animated.View style={[styles.container, { opacity: narratedOpacity }]}>
-          <Text style={styles.brand}>Riffado</Text>
+          <Wordmark size={64} letterSpacing={3} />
           <Text style={styles.tagline}>
             Reproduce 10–15 segundos de una canción y te damos la progresión
             probable para tocarla en guitarra.
@@ -85,7 +86,7 @@ export function SplashScreen({ navigation }: Props) {
       )}
       {phase === "logo" && (
         <Animated.View style={[styles.container, { opacity: logoOpacity }]}>
-          <Text style={styles.logo}>Riffado</Text>
+          <Wordmark size={72} letterSpacing={3} letterColor={colors.primary} />
         </Animated.View>
       )}
     </View>
@@ -100,12 +101,6 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     paddingHorizontal: spacing.xl,
     gap: spacing.lg,
-  },
-  brand: {
-    fontFamily: BRAND_FONT,
-    fontSize: 64,
-    color: colors.text,
-    letterSpacing: 3,
   },
   tagline: {
     ...typography.body,
@@ -124,11 +119,5 @@ const styles = StyleSheet.create({
     color: colors.textMuted,
     textAlign: "center",
     lineHeight: 22,
-  },
-  logo: {
-    fontFamily: BRAND_FONT,
-    fontSize: 72,
-    color: colors.primary,
-    letterSpacing: 3,
   },
 });

@@ -4,7 +4,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 
 import { colors, radius, spacing, typography } from "../../../theme/tokens";
 import { displayChord, toLatinRoot } from "../../../utils/notation";
-import { useNotation } from "../../settings/NotationContext";
+import { useNotation } from "../../settings/SettingsContext";
 import { findShape, groupedByRoot } from "../data/chordShapes";
 
 interface Props {

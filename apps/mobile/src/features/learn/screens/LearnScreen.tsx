@@ -4,7 +4,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 
 import { BRAND_FONT, colors, radius, spacing, typography } from "../../../theme/tokens";
 import { displayChord, toLatinRoot } from "../../../utils/notation";
-import { useNotation } from "../../settings/NotationContext";
+import { useNotation } from "../../settings/SettingsContext";
 import { useChordPlayer } from "../audio/useChordPlayer";
 import { CircleOfFifthsSvg } from "../components/CircleOfFifthsSvg";
 import {

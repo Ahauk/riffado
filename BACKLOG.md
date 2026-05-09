@@ -91,23 +91,71 @@
   enfocar el tab y auto-stop al blur (sin botones). YIN tunings:
   threshold 0.18 (admite cuerdas agudas con attack rápido),
   MIN_CONFIDENCE 0.4 (filtra ruido).
+- ✅ **Letras manuales** — pestaña "Letra" en Results es un `TextInput`
+  multiline con `InputAccessoryView` ("Listo" sobre el teclado en iOS).
+  Persiste en AsyncStorage via `setLyrics(analysisId, text)` al `onBlur`.
+  Sin cap de longitud. Sin sync con timestamps todavía.
+- ✅ **SEVENTH_BIAS calibrado a 0.85** (antes 0.88). Validación documentada
+  en `validation/SEVENTH_BIAS_PROTOCOL.md` + script reproducible
+  `validation/sweep_seventh_bias.py`. Corolario: A7 en Yesterday no
+  se detecta a NINGÚN bias — fail de chroma fundamental con guitarra/voz
+  solas en F mayor; requiere upgrade del detector (Chordino o ML).
+- ✅ **Notación dual (anglosajona + latina) con toggle de prioridad.**
+  Las dos notaciones siempre visibles: una grande, otra como secundaria
+  pequeña. Toggle en Settings ("Inglesa" default / "Latina") cambia cuál
+  va grande. Afecta pills de Results, ChordRow, ChordDetail, ShareableCard,
+  picker, círculo de quintas. Mapeo C→Do, D→Re, ... Si se elige latina,
+  el primario va en formato `Sol mayor` y el secundario en `G`.
+- ✅ **Modo "Aprende" — círculo de quintas interactivo** (pestaña 4ta tab).
+  SVG del círculo con 12 notas equidistantes; cada acorde dibuja sus
+  notas con dots conectados por polígonos (triángulos para triadas,
+  tetragramas para 7mas). Librería de fórmulas: maj/min/maj7/7/m7/sus2/
+  sus4/dim/aug/9, etc. Síntesis de audio en vivo: arpegio plucked-string
+  (piano-style timbre) con 12 voces pre-cargadas para latencia mínima.
+- ✅ **Settings completo — toggles + datos + feedback.**
+  Sección Visualización: switch "Mostrar grados armónicos" (default ON,
+  oculta grado romano debajo de cada acorde, huella `I – ii` y la línea
+  de progresión en la share card cuando OFF); switch "Sugerir capo
+  automáticamente" (default ON, oculta el bloque "¿Más fácil? Capo X"
+  en Results y el pill `Capo N` en la share card cuando OFF). Sección
+  Datos: "Limpiar historial" con confirmación destructiva → llama
+  `clearHistory()` (que ya borraba audios). Sección Feedback: "Enviar
+  feedback" abre `mailto:logan0299@msn.com` con asunto + cuerpo
+  prellenados. `NotationContext` se refactorizó a `SettingsContext`
+  con `useSettings()` (todos los toggles) + `useNotation()` shim para
+  no romper callers. Cada preferencia persiste en su propia key de
+  AsyncStorage para migrations limpias.
 
 ## Corto plazo (próximas 1–2 sesiones)
 
+- **Bug — ícono ausente en dev build.** La app dev en el iPhone aparece
+  sin ícono. Falta `icon` o el asset en `app.json`. Fix simple, ~10 min.
+  Buen warm-up de cualquier sesión.
 - **Calibrar SEVENTH_BIAS con pruebas reales** — Victor debe probar
   en iPhone con (1) backing track puro triadas para confirmar que no
   salen 7mas falsas, (2) canción con 7ma real (bolero/bossa/Beatles)
   para confirmar detección, (3) clips previos para regresión.
   Si faltan 7mas reales → subir a 0.90. Si sobran falsas → bajar a 0.85.
-- **Letras manuales** — pestaña "Letra" en Results es placeholder
-  hoy. Versión sin licensing: textarea para que el user pegue su
-  propia letra y se persista junto al análisis. Sync con timestamps
-  más adelante. Musixmatch API es mediano plazo (cuesta + licensing).
-- **Arpegios / fingerpicking**: actualmente el detector funciona con
-  arpegios pero con menos confianza (más badges "revísalo"). Ventanas
-  de análisis más largas (~2-3s vs 1s actual) o pesos más altos en
-  notas bajas (bassline suele cantar la raíz) podrían mitigar.
-  Chordino en mediano plazo resuelve de base.
+
+### Descartado (en pausa hasta tener más data)
+
+- **Arpegios — ventanas más largas: NO funcionó.** Sweep
+  `validation/sweep_window_size.py` corrió `win_sec ∈ {1.0, 1.5, 2.0,
+  2.5, 3.0}` contra los 20 clips. Resultado: ningún tamaño cumple
+  "mejorar arpegio + regresión global ≤ 2pp". El único que mejora
+  Yesterday (1.5s, 50%→75%) cuesta -5pp globales (70%→65%); de 2.0s
+  hacia arriba ni siquiera mejora Yesterday. Folk/indie es lo más
+  perjudicado (-20pp a -39pp). Backend sigue con `win_sec=1.0`.
+  CSV crudo: `validation/results/window_size_sweep.csv`.
+  **Para retomar arpegios hace falta:**
+  1. Expandir dataset con 3-5 clips arpegiados reales (Dust in the
+     Wind, Blackbird, Tears in Heaven, Stairway intro, Hotel California
+     intro). Sin n>1 no se puede validar nada arpegio-específico.
+  2. Plan B: pesar bajos (chroma dual con énfasis en octavas bajas via
+     `librosa.cqt` raw, no `chroma_cqt`). Más complejo, ataca el
+     problema de la raíz diluida en arpegios.
+  3. Plan C de fondo: Chordino o modelo ML — único upgrade real para
+     arpegios + acordes complejos.
 
 ## Mediano plazo
 
@@ -123,8 +171,10 @@
   notas tiende a competir con triadas y dominantes 7 por confusión).
   11vas/13vas **NO** (múltiples voicings válidos por acorde, target
   guitarrista LATAM casi no los toca, detector chroma no los reconocerá).
-- **Detección de secciones (verso/coro/puente)** — novelty detection con
-  librosa.segment. Útil cuando pasemos a canciones de 2–3 min.
+- **Detección de secciones (intro/verso/coro/puente)** — novelty detection
+  con `librosa.segment` sobre la chroma. Mejora visual en Results
+  (agrupar progresión por sección). Útil cuando pasemos a canciones
+  de 2–3 min.
 - **Canciones completas (2–3 min)** — rediseño grande, no un feature más.
   Implica: procesamiento server-side asíncrono con progress (~20–30 s),
   detección de secciones (verso/coro/puente) para agrupar la progresión,
@@ -134,49 +184,14 @@
   (verso entero o verso+coro).
 - **Mejorar detector**: Chordino / autochord vía Docker (de 70% → ~85%
   esperado). Considerar modelo ML moderno (BTC, CRNN) solo si hay
-  demanda real medida.
-- **Detección de secciones** (intro / verso / coro) con novelty detection
-  sobre la chroma. Mejora visual en Results (agrupar progresión por
-  sección).
+  demanda real medida. Único upgrade real para arpegios + acordes
+  complejos (ver "Descartado: Arpegios" en corto plazo).
 - **Strumming pattern** sugerido — detectar ritmo con onset detection y
   sugerir pattern (ej. "D DU UDU" para baladas pop).
 - **Metrónomo** para practicar con el fragmento loopeado.
-- **Modo "Aprende" — círculo de quintas interactivo.** Pestaña dedicada
-  (probable cuarta tab del bottom bar) inspirada en un reel de UrBoi
-  Muzic. Pieza 1: SVG del círculo de quintas con las 12 notas
-  equidistantes y un dot que viaja a las notas que componen un acorde
-  seleccionado, dibujando los polígonos clásicos (triángulos para
-  triada, tetragramas para 7mas, etc.). Pieza 2: síntesis de audio en
-  vivo para tocar cada nota y luego el acorde junto. Pieza 3: librería
-  pura de fórmulas de acordes (mayor = 1-3-5, menor = 1-b3-5,
-  dominante 7 = 1-3-5-b7, maj7, m7, sus2, sus4, dim, aug, 9, etc.).
-  Decisión clave de implementación: samples pre-grabados (~2.5 MB para
-  12 notas, suena a guitarra real, asset cost) vs síntesis con
-  oscilador (suena a "synth", asset zero). Probable empezar con
-  oscilador para validar UX, después subir a samples si el feature pega.
-  Scope ~1-2 sesiones cuando lleguemos a la pestaña Aprende.
-- **Notación dual (anglosajona + latina) con toggle de prioridad.**
-  Las dos notaciones SIEMPRE visibles: una grande (la primaria) y la
-  otra como superíndice/secundaria pequeña. El toggle en Settings
-  decide cuál va grande. Razón: ~99% de los tabs y cancioneros en
-  internet usan inglesa (D, G, A...), así que si un usuario latino
-  solo ve Do/Re/Mi pierde la conexión con el resto del ecosistema.
-  Mostrar las dos pasivamente le enseña la equivalencia sin tutorial.
-  - Toggle "Inglesa" (default): `G mayor` grande, `Sol` chiquito al lado.
-  - Toggle "Latina": `Sol mayor` grande, `G` chiquito al lado.
-  - Afecta: pills de Results, ChordRow, ChordDetail, ShareableCard,
-    círculo de quintas, ChordPickerSheet.
-  - Mapeo: C→Do, C#→Do#, D→Re, D#→Re#, E→Mi, F→Fa, F#→Fa#, G→Sol,
-    G#→Sol#, A→La, A#→La#, B→Si.
-  - Data interna se queda en inglesa/MIDI; solo el display cambia.
-  - Bonus: agregar entrada al glosario con la tabla completa de
-    equivalencia para reforzar el aprendizaje.
-- **Settings más completo**:
-  - Toggle "mostrar grados armónicos" (default on).
-  - Toggle "sugerir capo automáticamente" (default on).
-  - Limpiar historial.
-  - Enviar feedback (mailto o formulario).
-  - Idioma (es-MX / es-ES / futuro en).
+- **Toggle de idioma en Settings** (es-MX / es-ES / futuro en) — implica
+  i18n completo (extraer todos los strings, react-i18next o similar).
+  Sesión dedicada.
 - **Branding real**: logo propio (no solo texto), splash asset diseñado,
   tipografía custom vía expo-font (Space Grotesk, Plus Jakarta Sans, etc.).
 - **Wordmark con clave de Fa** reemplazando una de las F de "Riffado".

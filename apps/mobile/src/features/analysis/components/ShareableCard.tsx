@@ -1,10 +1,11 @@
 import { forwardRef } from "react";
 import { StyleSheet, Text, View } from "react-native";
 
+import { Wordmark } from "../../../components/brand/Wordmark";
 import { ChordDiagramSvg } from "../../chords/components/ChordDiagramSvg";
 import { findShape } from "../../chords/data/chordShapes";
-import { useNotation } from "../../settings/NotationContext";
-import { BRAND_FONT, colors, radius, spacing, typography } from "../../../theme/tokens";
+import { useSettings } from "../../settings/SettingsContext";
+import { colors, radius, spacing, typography } from "../../../theme/tokens";
 import { AnalysisResult, ChordSegment } from "../../../types/api";
 import { displayChord, displayKey } from "../../../utils/notation";
 
@@ -46,7 +47,7 @@ export const ShareableCard = forwardRef<View, ShareableCardProps>(function Share
   { analysis, progressionLabel, customTitle },
   ref,
 ) {
-  const { notation } = useNotation();
+  const { notation, showDegrees, showCapo } = useSettings();
   const keyLabel = displayKey(analysis.key.root, analysis.key.mode, notation).primary;
   const displayedTitle = customTitle?.trim() || keyLabel;
   const showSubtitle = Boolean(customTitle?.trim());
@@ -70,7 +71,15 @@ export const ShareableCard = forwardRef<View, ShareableCardProps>(function Share
   return (
     <View ref={ref} collapsable={false} style={styles.card}>
       <View style={styles.headerBlock}>
-        <Text style={styles.brand}>RIFFADO</Text>
+        <Wordmark
+          size={36}
+          letterSpacing={4}
+          letterStyle={{
+            textShadowColor: colors.primary,
+            textShadowOffset: { width: 0, height: 0 },
+            textShadowRadius: 12,
+          }}
+        />
         <Text style={styles.title} numberOfLines={2}>
           {displayedTitle}
         </Text>
@@ -78,9 +87,9 @@ export const ShareableCard = forwardRef<View, ShareableCardProps>(function Share
         <View style={styles.metaRow}>
           <Text style={styles.metaPill}>{keyLabel}</Text>
           {bpmLabel && <Text style={styles.metaPill}>{bpmLabel}</Text>}
-          <Text style={styles.metaPill}>{capoLabel}</Text>
+          {showCapo && <Text style={styles.metaPill}>{capoLabel}</Text>}
         </View>
-        {progressionLabel.length > 0 && (
+        {showDegrees && progressionLabel.length > 0 && (
           <Text style={styles.progression} numberOfLines={1}>
             {progressionLabel}
           </Text>
@@ -129,15 +138,6 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
   },
   headerBlock: { gap: 6 },
-  brand: {
-    fontFamily: BRAND_FONT,
-    fontSize: 36,
-    color: colors.text,
-    letterSpacing: 4,
-    textShadowColor: colors.primary,
-    textShadowOffset: { width: 0, height: 0 },
-    textShadowRadius: 12,
-  },
   title: { ...typography.h2, color: colors.text, marginTop: spacing.xs },
   subtitle: { ...typography.caption, color: colors.textMuted, fontWeight: "600" },
   metaRow: { flexDirection: "row", flexWrap: "wrap", gap: spacing.xs, marginTop: spacing.xs },

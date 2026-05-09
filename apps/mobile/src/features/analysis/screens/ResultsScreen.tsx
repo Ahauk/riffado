@@ -36,7 +36,7 @@ import { BRAND_FONT, colors, radius, spacing, typography } from "../../../theme/
 import { suggestAlternatives } from "../../../utils/chordSuggestions";
 import { displayChord, displayKey } from "../../../utils/notation";
 import { computeProgressionLabel, degreeOf } from "../../../utils/roman";
-import { useNotation } from "../../settings/NotationContext";
+import { useSettings } from "../../settings/SettingsContext";
 import { AudioPlayerBar } from "../components/AudioPlayerBar";
 import { ShareableCard } from "../components/ShareableCard";
 
@@ -105,7 +105,7 @@ function richQualitySuffix(chord: ChordSegment): string | null {
 }
 
 function ChordRow({ chord, active, onPress, onEditPress }: ChordRowProps) {
-  const { notation } = useNotation();
+  const { notation, showDegrees } = useSettings();
   const display = displayOf(chord);
   const dual = displayChord(display.name, notation);
   const shape = findShape(display.shape_id) ?? findShape(display.name);
@@ -164,7 +164,7 @@ function ChordRow({ chord, active, onPress, onEditPress }: ChordRowProps) {
             </Pressable>
           )}
         </View>
-        {display.degree && (
+        {showDegrees && display.degree && (
           <Text style={rowStyles.degree}>{display.degree}</Text>
         )}
       </View>
@@ -215,7 +215,7 @@ export function ResultsScreen({ route, navigation }: Props) {
     }, [analysis.analysis_id]),
   );
 
-  const { notation } = useNotation();
+  const { notation, showDegrees, showCapo } = useSettings();
   const keyDual = displayKey(analysis.key.root, analysis.key.mode, notation);
   const keyLabel = keyDual.primary;
   const capo = analysis.suggested_capo.fret;
@@ -388,7 +388,7 @@ export function ResultsScreen({ route, navigation }: Props) {
           >
             <Text style={styles.metaPillLabel}>{keyLabel}</Text>
           </Pressable>
-          {progressionLabel.length > 0 && (
+          {showDegrees && progressionLabel.length > 0 && (
             <Pressable
               onPress={() => setHelpEntry(HELP.progression)}
               style={styles.metaPill}
@@ -411,17 +411,19 @@ export function ResultsScreen({ route, navigation }: Props) {
             <Text style={styles.shareLabel}>{sharing ? "..." : "Compartir"}</Text>
           </Pressable>
         </View>
-        <View style={styles.capoRow}>
-          <Text style={styles.capoLine}>
-            {capo === 0
-              ? analysis.suggested_capo.reason
-              : `¿Más fácil? ${analysis.suggested_capo.reason}`}
-          </Text>
-          <InfoDot
-            onPress={() => setHelpEntry(HELP.capo)}
-            accessibilityLabel="Qué es un capo"
-          />
-        </View>
+        {showCapo && (
+          <View style={styles.capoRow}>
+            <Text style={styles.capoLine}>
+              {capo === 0
+                ? analysis.suggested_capo.reason
+                : `¿Más fácil? ${analysis.suggested_capo.reason}`}
+            </Text>
+            <InfoDot
+              onPress={() => setHelpEntry(HELP.capo)}
+              accessibilityLabel="Qué es un capo"
+            />
+          </View>
+        )}
         {audioUri && (
           <View style={styles.playerWrap}>
             <AudioPlayerBar player={player} status={status} />

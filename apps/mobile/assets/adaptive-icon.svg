@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <!--
+    Android adaptive icon foreground. The launcher composes this on top of
+    its own backgroundColor (set to #0B0B12 in app.json). The clef must
+    fit inside the inner 66% safe zone (~676x676 centered) because the OS
+    can crop the corners with various masks (circle / rounded square).
+  -->
+  <g transform="translate(344 292) scale(4.0)">
+    <path d="M 44 6 C 22 6 6 22 6 46 C 6 64 16 78 32 86 L 32 100 Q 32 106 26 106 L 24 106 L 28 110 L 36 110 Q 44 110 44 102 L 44 88 C 64 86 78 70 78 48 C 78 24 64 6 44 6 Z M 44 20 C 58 20 68 32 68 48 C 68 64 58 76 46 76 Q 38 76 38 68 L 38 60 Q 48 60 48 50 Q 48 40 38 40 Q 26 40 26 54 Q 26 70 42 76 C 56 80 70 70 70 52 C 70 34 60 20 44 20 Z" fill="#FFFFFF" fill-rule="evenodd" />
+    <circle cx="80" cy="34" r="5" fill="#FFFFFF" />
+    <circle cx="80" cy="56" r="5" fill="#FFFFFF" />
+  </g>
+</svg>

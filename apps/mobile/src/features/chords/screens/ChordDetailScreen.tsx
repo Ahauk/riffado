@@ -10,7 +10,7 @@ import { suggestAlternatives } from "../../../utils/chordSuggestions";
 import { displayChord } from "../../../utils/notation";
 import { degreeOf } from "../../../utils/roman";
 import { updateAnalysisChord } from "../../history/storage";
-import { useNotation } from "../../settings/NotationContext";
+import { useNotation } from "../../settings/SettingsContext";
 import { ChordDiagramSvg } from "../components/ChordDiagramSvg";
 import { ChordPickerSheet } from "../components/ChordPickerSheet";
 import { findShape } from "../data/chordShapes";

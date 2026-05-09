@@ -13,13 +13,25 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
+import { Wordmark } from "../../../components/brand/Wordmark";
 import { RootStackParamList } from "../../../navigation/types";
 import { useTabBarVisibility } from "../../../navigation/TabBarContext";
 import { WaveformBars } from "../../recording/components/WaveformBars";
 import { useRecording } from "../../recording/hooks/useRecording";
 import { BRAND_FONT, colors, radius, spacing, typography } from "../../../theme/tokens";
 
+const BRAND_SIZE = 38;
+
 const BUTTON_SIZE = 240;
+
+/** Shared neon halo shadow used by every layer of the wordmark. */
+function brandShadow(radius: number, color: string = colors.primary) {
+  return {
+    textShadowColor: color,
+    textShadowOffset: { width: 0, height: 0 },
+    textShadowRadius: radius,
+  };
+}
 
 function formatSeconds(ms: number): string {
   const total = Math.floor(ms / 1000);
@@ -194,9 +206,9 @@ export function HomeScreen() {
         <View style={styles.topBar}>
           <View style={styles.brandWrap}>
             {/* Far bloom — the wide purple aura that bleeds into the scene. */}
-            <Animated.Text
+            <Animated.View
               style={[
-                styles.brandFarBloom,
+                styles.brandLayer,
                 {
                   opacity: farBloomOpacity,
                   transform: [{ scale: farBloomScale }],
@@ -204,12 +216,18 @@ export function HomeScreen() {
               ]}
               pointerEvents="none"
             >
-              Riffado
-            </Animated.Text>
+              <Wordmark
+                size={BRAND_SIZE}
+                letterColor="transparent"
+                clefColor={colors.primary}
+                letterStyle={brandShadow(56)}
+                clefBlur={6}
+              />
+            </Animated.View>
             {/* Mid bloom — halo that hugs the glyphs. */}
-            <Animated.Text
+            <Animated.View
               style={[
-                styles.brandBloom,
+                styles.brandLayer,
                 {
                   opacity: bloomOpacity,
                   transform: [{ scale: bloomScale }],
@@ -217,12 +235,18 @@ export function HomeScreen() {
               ]}
               pointerEvents="none"
             >
-              Riffado
-            </Animated.Text>
+              <Wordmark
+                size={BRAND_SIZE}
+                letterColor="transparent"
+                clefColor={colors.primary}
+                letterStyle={brandShadow(28)}
+                clefBlur={3.5}
+              />
+            </Animated.View>
             {/* Hot flare — lavender highlight visible only near peak brightness. */}
-            <Animated.Text
+            <Animated.View
               style={[
-                styles.brandFlare,
+                styles.brandLayer,
                 {
                   opacity: flareOpacity,
                   transform: [{ scale: flareScale }],
@@ -230,12 +254,18 @@ export function HomeScreen() {
               ]}
               pointerEvents="none"
             >
-              Riffado
-            </Animated.Text>
+              <Wordmark
+                size={BRAND_SIZE}
+                letterColor="transparent"
+                clefColor={colors.primarySoft}
+                letterStyle={brandShadow(22, colors.primarySoft)}
+                clefBlur={2.5}
+              />
+            </Animated.View>
             {/* Near glow — fills the letter shape with soft purple. */}
-            <Animated.Text
+            <Animated.View
               style={[
-                styles.brandGlow,
+                styles.brandLayer,
                 {
                   opacity: glowOpacity,
                   transform: [{ scale: glowScale }],
@@ -243,21 +273,28 @@ export function HomeScreen() {
               ]}
               pointerEvents="none"
             >
-              Riffado
-            </Animated.Text>
+              <Wordmark
+                size={BRAND_SIZE}
+                letterColor={colors.primary}
+                clefColor={colors.primary}
+                letterStyle={brandShadow(12)}
+              />
+            </Animated.View>
             {/* White core — the "tube" of the neon sign; thins slightly at
                 peak so the expanding purple appears to eat into it. */}
-            <Animated.Text
-              style={[
-                styles.brand,
-                {
-                  opacity: coreOpacity,
-                  transform: [{ scale: coreScale }],
-                },
-              ]}
+            <Animated.View
+              style={{
+                opacity: coreOpacity,
+                transform: [{ scale: coreScale }],
+              }}
             >
-              Riffado
-            </Animated.Text>
+              <Wordmark
+                size={BRAND_SIZE}
+                letterColor={colors.text}
+                clefColor={colors.text}
+                letterStyle={brandShadow(4)}
+              />
+            </Animated.View>
           </View>
           <Pressable
             onPress={() => rootNav.navigate("Settings")}
@@ -345,62 +382,12 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     marginVertical: -14,
   },
-  brand: {
-    fontFamily: BRAND_FONT,
-    fontSize: 38,
-    color: colors.text,
-    letterSpacing: 2,
-    textShadowColor: colors.primary,
-    textShadowOffset: { width: 0, height: 0 },
-    textShadowRadius: 4,
-  },
-  brandGlow: {
+  // Each glow layer sits absolutely over the core wordmark so they can
+  // breathe independently via opacity/scale animations.
+  brandLayer: {
     position: "absolute",
     top: 14,
     left: 28,
-    fontFamily: BRAND_FONT,
-    fontSize: 38,
-    color: colors.primary,
-    letterSpacing: 2,
-    textShadowColor: colors.primary,
-    textShadowOffset: { width: 0, height: 0 },
-    textShadowRadius: 12,
-  },
-  brandBloom: {
-    position: "absolute",
-    top: 14,
-    left: 28,
-    fontFamily: BRAND_FONT,
-    fontSize: 38,
-    color: "transparent",
-    letterSpacing: 2,
-    textShadowColor: colors.primary,
-    textShadowOffset: { width: 0, height: 0 },
-    textShadowRadius: 28,
-  },
-  brandFarBloom: {
-    position: "absolute",
-    top: 14,
-    left: 28,
-    fontFamily: BRAND_FONT,
-    fontSize: 38,
-    color: "transparent",
-    letterSpacing: 2,
-    textShadowColor: colors.primary,
-    textShadowOffset: { width: 0, height: 0 },
-    textShadowRadius: 56,
-  },
-  brandFlare: {
-    position: "absolute",
-    top: 14,
-    left: 28,
-    fontFamily: BRAND_FONT,
-    fontSize: 38,
-    color: "transparent",
-    letterSpacing: 2,
-    textShadowColor: colors.primarySoft,
-    textShadowOffset: { width: 0, height: 0 },
-    textShadowRadius: 22,
   },
   settingsIcon: { color: colors.textMuted, fontSize: 24 },
 
